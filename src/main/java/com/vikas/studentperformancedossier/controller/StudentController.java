@@ -1,6 +1,7 @@
 package com.vikas.studentperformancedossier.controller;
 
-import com.vikas.studentperformancedossier.entity.Student;
+import com.vikas.studentperformancedossier.dto.StudentRequest;
+import com.vikas.studentperformancedossier.dto.StudentResponse;
 import com.vikas.studentperformancedossier.service.StudentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -27,24 +28,24 @@ public class StudentController {
     }
 
     @GetMapping
-    public List<Student> getAllStudents() {
+    public List<StudentResponse> getAllStudents() {
         return studentService.findAll();
     }
 
     @GetMapping("/{id}")
-    public Student getStudentById(@PathVariable Long id) {
+    public StudentResponse getStudentById(@PathVariable Long id) {
         return studentService.findById(id);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Student createStudent(@Valid @RequestBody Student student) {
-        return studentService.create(student);
+    public StudentResponse createStudent(@Valid @RequestBody StudentRequest request) {
+        return studentService.create(request);
     }
 
     @PutMapping("/{id}")
-    public Student updateStudent(@PathVariable Long id, @Valid @RequestBody Student student) {
-        return studentService.update(id, student);
+    public StudentResponse updateStudent(@PathVariable Long id, @Valid @RequestBody StudentRequest request) {
+        return studentService.update(id, request);
     }
 
     @DeleteMapping("/{id}")
