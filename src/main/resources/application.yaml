@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/student_performance_dossier
     username: postgres
-    password: vikas@123
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
