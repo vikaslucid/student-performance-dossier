@@ -1,3 +1,9 @@
 spring:
-  application:
-    name: student-performance-dossier
+  datasource:
+    url: jdbc:postgresql://localhost:5432/student_performance_dossier
+    username: postgres
+    password: vikas@123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
