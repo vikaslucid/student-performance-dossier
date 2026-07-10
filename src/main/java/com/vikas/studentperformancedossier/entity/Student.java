@@ -3,11 +3,6 @@ package com.vikas.studentperformancedossier.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.PastOrPresent;
 
 import java.time.LocalDate;
 
@@ -15,30 +10,21 @@ import java.time.LocalDate;
 @Table(name = "students")
 public class Student extends BaseEntity {
 
-    @NotBlank
     @Column(nullable = false)
     private String firstName;
 
-    @NotBlank
     @Column(nullable = false)
     private String lastName;
 
-    @NotBlank
-    @Email
     @Column(nullable = false, unique = true)
     private String email;
 
-    @NotNull
-    @Past
     @Column(nullable = false)
     private LocalDate dateOfBirth;
 
-    @NotNull
-    @PastOrPresent
     @Column(nullable = false)
     private LocalDate enrollmentDate;
 
-    @NotBlank
     @Column(nullable = false, unique = true)
     private String studentNumber;
 
