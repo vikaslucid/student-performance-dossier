@@ -3,6 +3,7 @@ package com.vikas.studentperformancedossier.service;
 import com.vikas.studentperformancedossier.dto.StudentRequest;
 import com.vikas.studentperformancedossier.dto.StudentResponse;
 import com.vikas.studentperformancedossier.entity.Student;
+import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
 import com.vikas.studentperformancedossier.repository.StudentRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
@@ -29,12 +30,14 @@ public class StudentService {
     }
 
     public StudentResponse create(StudentRequest request) {
+        ensureUnique(request, null);
         Student student = new Student();
         applyRequest(student, request);
         return toResponse(studentRepository.save(student));
     }
 
     public StudentResponse update(Long id, StudentRequest request) {
+        ensureUnique(request, id);
         Student existing = findEntityById(id);
         applyRequest(existing, request);
         return toResponse(studentRepository.save(existing));
@@ -42,6 +45,26 @@ public class StudentService {
 
     public void delete(Long id) {
         studentRepository.delete(findEntityById(id));
+    }
+
+    private void ensureUnique(StudentRequest request, Long excludingId) {
+        studentRepository.findByEmail(request.email())
+                .filter(existing -> isDifferentRecord(existing, excludingId))
+                .ifPresent(existing -> {
+                    throw new DuplicateResourceException(
+                            "A student with email '" + request.email() + "' already exists");
+                });
+
+        studentRepository.findByStudentNumber(request.studentNumber())
+                .filter(existing -> isDifferentRecord(existing, excludingId))
+                .ifPresent(existing -> {
+                    throw new DuplicateResourceException(
+                            "A student with student number '" + request.studentNumber() + "' already exists");
+                });
+    }
+
+    private boolean isDifferentRecord(Student existing, Long excludingId) {
+        return excludingId == null || !existing.getId().equals(excludingId);
     }
 
     private Student findEntityById(Long id) {
