@@ -19,6 +19,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -132,6 +133,16 @@ class StudentControllerTest {
     void deleteStudent_returns204() throws Exception {
         mockMvc.perform(delete("/api/students/{id}", 1L))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteStudent_whenMissing_returns404() throws Exception {
+        doThrow(new EntityNotFoundException("Student not found with id: 99"))
+                .when(studentService).delete(99L);
+
+        mockMvc.perform(delete("/api/students/{id}", 99L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Student not found with id: 99"));
     }
 
     private StudentRequest sampleRequest() {
