@@ -228,6 +228,99 @@ class StudentControllerTest {
     }
 
     @Test
+    void updateStudent_whenInvalid_returns400WithFieldErrors() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "",
+                "Lovelace",
+                "not-an-email",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Validation failed for one or more fields"))
+                .andExpect(jsonPath("$.errors.firstName").exists())
+                .andExpect(jsonPath("$.errors.email").exists())
+                .andExpect(jsonPath("$.errors.dateOfBirth").exists());
+    }
+
+    @Test
+    void updateStudent_whenLastNameBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.lastName").exists());
+    }
+
+    @Test
+    void updateStudent_whenStudentNumberBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                ""
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.studentNumber").exists());
+    }
+
+    @Test
+    void updateStudent_whenEnrollmentDateInFuture_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.now().plusDays(1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.enrollmentDate").exists());
+    }
+
+    @Test
+    void updateStudent_whenDateOfBirthNotInPast_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.now(),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.dateOfBirth").exists());
+    }
+
+    @Test
     void deleteStudent_returns204() throws Exception {
         mockMvc.perform(delete("/api/students/{id}", 1L))
                 .andExpect(status().isNoContent());
