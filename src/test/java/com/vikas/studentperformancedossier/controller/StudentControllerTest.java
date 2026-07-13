@@ -143,6 +143,19 @@ class StudentControllerTest {
     }
 
     @Test
+    void updateStudent_whenDuplicate_returns409() throws Exception {
+        StudentRequest request = sampleRequest();
+        when(studentService.update(eq(1L), eq(request)))
+                .thenThrow(new DuplicateResourceException("A student with email 'ada@example.com' already exists"));
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("A student with email 'ada@example.com' already exists"));
+    }
+
+    @Test
     void deleteStudent_returns204() throws Exception {
         mockMvc.perform(delete("/api/students/{id}", 1L))
                 .andExpect(status().isNoContent());
