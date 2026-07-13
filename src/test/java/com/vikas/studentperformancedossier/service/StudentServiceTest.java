@@ -148,6 +148,16 @@ class StudentServiceTest {
         verify(studentRepository, never()).delete(any());
     }
 
+    @Test
+    void delete_whenStudentExists_deletesStudent() {
+        Student existing = existingStudent(1L, "ada@example.com", "S-100");
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(existing));
+
+        studentService.delete(1L);
+
+        verify(studentRepository).delete(existing);
+    }
+
     private Student existingStudent(Long id, String email, String studentNumber) {
         Student student = new Student();
         student.setId(id);
