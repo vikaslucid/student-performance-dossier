@@ -51,6 +51,16 @@ class StudentControllerTest {
     }
 
     @Test
+    void getAllStudents_whenEmpty_returnsEmptyList() throws Exception {
+        when(studentService.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/students"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
     void getStudentById_whenFound_returnsStudent() throws Exception {
         when(studentService.findById(1L)).thenReturn(sampleResponse(1L));
 
