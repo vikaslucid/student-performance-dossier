@@ -105,6 +105,78 @@ class StudentControllerTest {
     }
 
     @Test
+    void createStudent_whenLastNameBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.lastName").exists());
+    }
+
+    @Test
+    void createStudent_whenStudentNumberBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                ""
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.studentNumber").exists());
+    }
+
+    @Test
+    void createStudent_whenEnrollmentDateInFuture_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.now().plusDays(1),
+                "S-100"
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.enrollmentDate").exists());
+    }
+
+    @Test
+    void createStudent_whenDateOfBirthNotInPast_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.now(),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.dateOfBirth").exists());
+    }
+
+    @Test
     void createStudent_whenDuplicate_returns409() throws Exception {
         StudentRequest request = sampleRequest();
         when(studentService.create(eq(request)))
