@@ -130,6 +130,19 @@ class StudentControllerTest {
     }
 
     @Test
+    void updateStudent_whenMissing_returns404() throws Exception {
+        StudentRequest request = sampleRequest();
+        when(studentService.update(eq(99L), eq(request)))
+                .thenThrow(new EntityNotFoundException("Student not found with id: 99"));
+
+        mockMvc.perform(put("/api/students/{id}", 99L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Student not found with id: 99"));
+    }
+
+    @Test
     void deleteStudent_returns204() throws Exception {
         mockMvc.perform(delete("/api/students/{id}", 1L))
                 .andExpect(status().isNoContent());
