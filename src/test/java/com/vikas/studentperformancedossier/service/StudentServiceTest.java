@@ -137,6 +137,17 @@ class StudentServiceTest {
         verify(studentRepository, never()).save(any());
     }
 
+    @Test
+    void delete_whenStudentNotFound_throwsEntityNotFoundException() {
+        when(studentRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> studentService.delete(99L))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("99");
+
+        verify(studentRepository, never()).delete(any());
+    }
+
     private Student existingStudent(Long id, String email, String studentNumber) {
         Student student = new Student();
         student.setId(id);
