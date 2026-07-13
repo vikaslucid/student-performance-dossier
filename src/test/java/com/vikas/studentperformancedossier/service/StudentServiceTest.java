@@ -5,6 +5,7 @@ import com.vikas.studentperformancedossier.dto.StudentResponse;
 import com.vikas.studentperformancedossier.entity.Student;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
 import com.vikas.studentperformancedossier.repository.StudentRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -121,6 +122,19 @@ class StudentServiceTest {
 
         assertThat(response.id()).isEqualTo(1L);
         verify(studentRepository).save(self);
+    }
+
+    @Test
+    void update_whenStudentNotFound_throwsEntityNotFoundException() {
+        when(studentRepository.findByEmail("ada@example.com")).thenReturn(Optional.empty());
+        when(studentRepository.findByStudentNumber("S-100")).thenReturn(Optional.empty());
+        when(studentRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> studentService.update(99L, request))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("99");
+
+        verify(studentRepository, never()).save(any());
     }
 
     private Student existingStudent(Long id, String email, String studentNumber) {
