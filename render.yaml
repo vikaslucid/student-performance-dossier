@@ -15,7 +15,6 @@
 databases:
   - name: student-performance-dossier-db
     databaseName: student_performance_dossier
-    user: postgres
     plan: free
 
 services:
