@@ -1,5 +1,7 @@
 package com.vikas.studentperformancedossier.controller;
 
+import com.vikas.studentperformancedossier.dto.AuthResponse;
+import com.vikas.studentperformancedossier.dto.LoginRequest;
 import com.vikas.studentperformancedossier.dto.RegisterRequest;
 import com.vikas.studentperformancedossier.dto.UserResponse;
 import com.vikas.studentperformancedossier.service.AuthService;
@@ -25,5 +27,10 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
+    }
+
+    @PostMapping("/login")
+    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 }

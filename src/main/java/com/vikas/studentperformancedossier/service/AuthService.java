@@ -1,10 +1,14 @@
 package com.vikas.studentperformancedossier.service;
 
+import com.vikas.studentperformancedossier.dto.AuthResponse;
+import com.vikas.studentperformancedossier.dto.LoginRequest;
 import com.vikas.studentperformancedossier.dto.RegisterRequest;
 import com.vikas.studentperformancedossier.dto.UserResponse;
 import com.vikas.studentperformancedossier.entity.User;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
+import com.vikas.studentperformancedossier.exception.InvalidCredentialsException;
 import com.vikas.studentperformancedossier.repository.UserRepository;
+import com.vikas.studentperformancedossier.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +17,12 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -32,6 +38,18 @@ public class AuthService {
         user.setRole(request.role());
 
         return toResponse(userRepository.save(user));
+    }
+
+    public AuthResponse login(LoginRequest request) {
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
+
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new InvalidCredentialsException("Invalid username or password");
+        }
+
+        String token = jwtService.generateToken(user.getUsername(), user.getRole());
+        return new AuthResponse(token, user.getUsername(), user.getRole());
     }
 
     private UserResponse toResponse(User user) {
