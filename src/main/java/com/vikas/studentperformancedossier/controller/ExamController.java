@@ -5,6 +5,7 @@ import com.vikas.studentperformancedossier.dto.ExamResponse;
 import com.vikas.studentperformancedossier.service.ExamService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,17 +40,20 @@ public class ExamController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public ExamResponse createExam(@Valid @RequestBody ExamRequest request) {
         return examService.create(request);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public ExamResponse updateExam(@PathVariable Long id, @Valid @RequestBody ExamRequest request) {
         return examService.update(id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteExam(@PathVariable Long id) {
         examService.delete(id);
     }

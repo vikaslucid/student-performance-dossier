@@ -5,6 +5,7 @@ import com.vikas.studentperformancedossier.dto.MarkResponse;
 import com.vikas.studentperformancedossier.service.MarkService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,17 +40,20 @@ public class MarkController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public MarkResponse createMark(@Valid @RequestBody MarkRequest request) {
         return markService.create(request);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public MarkResponse updateMark(@PathVariable Long id, @Valid @RequestBody MarkRequest request) {
         return markService.update(id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteMark(@PathVariable Long id) {
         markService.delete(id);
     }
