@@ -29,6 +29,11 @@ public class GlobalExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    public ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidationErrors(MethodArgumentNotValidException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(

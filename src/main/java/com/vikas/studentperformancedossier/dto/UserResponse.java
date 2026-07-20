@@ -8,6 +8,7 @@ public record UserResponse(
         Long id,
         String username,
         Role role,
+        Long studentId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
