@@ -4,11 +4,14 @@ import com.vikas.studentperformancedossier.dto.MarkRequest;
 import com.vikas.studentperformancedossier.dto.MarkResponse;
 import com.vikas.studentperformancedossier.entity.Exam;
 import com.vikas.studentperformancedossier.entity.Mark;
+import com.vikas.studentperformancedossier.entity.Role;
 import com.vikas.studentperformancedossier.entity.Student;
+import com.vikas.studentperformancedossier.entity.User;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
 import com.vikas.studentperformancedossier.repository.ExamRepository;
 import com.vikas.studentperformancedossier.repository.MarkRepository;
 import com.vikas.studentperformancedossier.repository.StudentRepository;
+import com.vikas.studentperformancedossier.security.CurrentUserProvider;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +42,9 @@ class MarkServiceTest {
 
     @Mock
     private ExamRepository examRepository;
+
+    @Mock
+    private CurrentUserProvider currentUserProvider;
 
     @InjectMocks
     private MarkService markService;
@@ -160,6 +167,112 @@ class MarkServiceTest {
         markService.delete(1L);
 
         verify(markRepository).delete(existing);
+    }
+
+    @Test
+    void findAll_whenAdmin_returnsAllMarks() {
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.ADMIN, null));
+        when(markRepository.findAll()).thenReturn(List.of(existingMark(1L)));
+
+        List<MarkResponse> responses = markService.findAll();
+
+        assertThat(responses).hasSize(1);
+        verify(markRepository, never()).findByStudent_Id(any());
+    }
+
+    @Test
+    void findAll_whenTeacher_returnsAllMarks() {
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.TEACHER, null));
+        when(markRepository.findAll()).thenReturn(List.of(existingMark(1L)));
+
+        List<MarkResponse> responses = markService.findAll();
+
+        assertThat(responses).hasSize(1);
+        verify(markRepository, never()).findByStudent_Id(any());
+    }
+
+    @Test
+    void findAll_whenStudent_returnsOnlyOwnMarks() {
+        Student linkedStudent = existingStudent(1L);
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.STUDENT, linkedStudent));
+        when(markRepository.findByStudent_Id(1L)).thenReturn(List.of(existingMark(1L)));
+
+        List<MarkResponse> responses = markService.findAll();
+
+        assertThat(responses).hasSize(1);
+        verify(markRepository, never()).findAll();
+    }
+
+    @Test
+    void findAll_whenStudentHasNoLinkedStudent_returnsEmptyList() {
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.STUDENT, null));
+
+        List<MarkResponse> responses = markService.findAll();
+
+        assertThat(responses).isEmpty();
+        verify(markRepository, never()).findAll();
+        verify(markRepository, never()).findByStudent_Id(any());
+    }
+
+    @Test
+    void findById_whenStudentOwnsMark_returnsMark() {
+        Student linkedStudent = existingStudent(1L);
+        when(markRepository.findById(1L)).thenReturn(Optional.of(existingMark(1L)));
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.STUDENT, linkedStudent));
+
+        MarkResponse response = markService.findById(1L);
+
+        assertThat(response.id()).isEqualTo(1L);
+    }
+
+    @Test
+    void findById_whenStudentDoesNotOwnMark_throwsEntityNotFoundException() {
+        Student otherStudent = existingStudent(99L);
+        when(markRepository.findById(1L)).thenReturn(Optional.of(existingMark(1L)));
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.STUDENT, otherStudent));
+
+        assertThatThrownBy(() -> markService.findById(1L))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("1");
+    }
+
+    @Test
+    void findById_whenStudentHasNoLinkedStudent_throwsEntityNotFoundException() {
+        when(markRepository.findById(1L)).thenReturn(Optional.of(existingMark(1L)));
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.STUDENT, null));
+
+        assertThatThrownBy(() -> markService.findById(1L))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void findById_whenAdmin_returnsAnyMark() {
+        when(markRepository.findById(1L)).thenReturn(Optional.of(existingMark(1L)));
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.ADMIN, null));
+
+        MarkResponse response = markService.findById(1L);
+
+        assertThat(response.id()).isEqualTo(1L);
+    }
+
+    @Test
+    void findById_whenTeacher_returnsAnyMark() {
+        when(markRepository.findById(1L)).thenReturn(Optional.of(existingMark(1L)));
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.TEACHER, null));
+
+        MarkResponse response = markService.findById(1L);
+
+        assertThat(response.id()).isEqualTo(1L);
+    }
+
+    private User existingUser(Role role, Student linkedStudent) {
+        User user = new User();
+        user.setId(1L);
+        user.setUsername("ada");
+        user.setPassword("hashed-password");
+        user.setRole(role);
+        user.setStudent(linkedStudent);
+        return user;
     }
 
     private Mark existingMark(Long id) {

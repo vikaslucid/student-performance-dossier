@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +53,29 @@ class MarkRepositoryTest {
         assertThat(found).isEmpty();
     }
 
+    @Test
+    void findByStudentId_returnsOnlyMarksForThatStudent() {
+        Student ada = persistedStudent("ada@example.com", "S-100");
+        Student grace = persistedStudent("grace@example.com", "S-200");
+        Exam exam = persistedExam();
+        Mark adaMark = persistedMark(ada, exam);
+        persistedMark(grace, exam);
+
+        List<Mark> found = markRepository.findByStudent_Id(ada.getId());
+
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getId()).isEqualTo(adaMark.getId());
+    }
+
+    @Test
+    void findByStudentId_whenStudentHasNoMarks_returnsEmptyList() {
+        Student student = persistedStudent();
+
+        List<Mark> found = markRepository.findByStudent_Id(student.getId());
+
+        assertThat(found).isEmpty();
+    }
+
     private SchoolClass persistedSchoolClass() {
         School school = new School();
         school.setName("Central High");
@@ -66,13 +90,17 @@ class MarkRepositoryTest {
     }
 
     private Student persistedStudent() {
+        return persistedStudent("ada@example.com", "S-100");
+    }
+
+    private Student persistedStudent(String email, String studentNumber) {
         Student student = new Student();
         student.setFirstName("Ada");
         student.setLastName("Lovelace");
-        student.setEmail("ada@example.com");
+        student.setEmail(email);
         student.setDateOfBirth(LocalDate.of(1990, 1, 1));
         student.setEnrollmentDate(LocalDate.of(2020, 1, 1));
-        student.setStudentNumber("S-100");
+        student.setStudentNumber(studentNumber);
         student.setSchoolClass(persistedSchoolClass());
         return entityManager.persistFlushFind(student);
     }

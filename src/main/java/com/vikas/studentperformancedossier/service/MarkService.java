@@ -4,11 +4,14 @@ import com.vikas.studentperformancedossier.dto.MarkRequest;
 import com.vikas.studentperformancedossier.dto.MarkResponse;
 import com.vikas.studentperformancedossier.entity.Exam;
 import com.vikas.studentperformancedossier.entity.Mark;
+import com.vikas.studentperformancedossier.entity.Role;
 import com.vikas.studentperformancedossier.entity.Student;
+import com.vikas.studentperformancedossier.entity.User;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
 import com.vikas.studentperformancedossier.repository.ExamRepository;
 import com.vikas.studentperformancedossier.repository.MarkRepository;
 import com.vikas.studentperformancedossier.repository.StudentRepository;
+import com.vikas.studentperformancedossier.security.CurrentUserProvider;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -20,22 +23,47 @@ public class MarkService {
     private final MarkRepository markRepository;
     private final StudentRepository studentRepository;
     private final ExamRepository examRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     public MarkService(MarkRepository markRepository, StudentRepository studentRepository,
-                        ExamRepository examRepository) {
+                        ExamRepository examRepository, CurrentUserProvider currentUserProvider) {
         this.markRepository = markRepository;
         this.studentRepository = studentRepository;
         this.examRepository = examRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public List<MarkResponse> findAll() {
-        return markRepository.findAll().stream()
+        User currentUser = currentUserProvider.getCurrentUser();
+        List<Mark> marks = currentUser.getRole() == Role.STUDENT
+                ? findMarksForLinkedStudent(currentUser)
+                : markRepository.findAll();
+        return marks.stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public MarkResponse findById(Long id) {
-        return toResponse(findEntityById(id));
+        Mark mark = findEntityById(id);
+        User currentUser = currentUserProvider.getCurrentUser();
+
+        if (currentUser.getRole() == Role.STUDENT && !belongsToLinkedStudent(mark, currentUser)) {
+            // Same "not found" as a genuinely missing id - a distinguishable 403 here would let a
+            // student enumerate which mark ids exist and belong to other students.
+            throw new EntityNotFoundException("Mark not found with id: " + id);
+        }
+
+        return toResponse(mark);
+    }
+
+    private List<Mark> findMarksForLinkedStudent(User currentUser) {
+        Student student = currentUser.getStudent();
+        return student == null ? List.of() : markRepository.findByStudent_Id(student.getId());
+    }
+
+    private boolean belongsToLinkedStudent(Mark mark, User currentUser) {
+        Student student = currentUser.getStudent();
+        return student != null && mark.getStudent().getId().equals(student.getId());
     }
 
     public MarkResponse create(MarkRequest request) {

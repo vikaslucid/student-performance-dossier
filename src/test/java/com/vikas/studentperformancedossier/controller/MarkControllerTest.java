@@ -290,6 +290,27 @@ class MarkControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void getAllMarks_whenStudentRole_returnsOnlyOwnMarks() throws Exception {
+        when(markService.findAll()).thenReturn(List.of(sampleResponse(1L)));
+
+        mockMvc.perform(get("/api/marks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void getMarkById_whenStudentAccessesAnotherStudentsMark_returns404() throws Exception {
+        when(markService.findById(1L))
+                .thenThrow(new EntityNotFoundException("Mark not found with id: 1"));
+
+        mockMvc.perform(get("/api/marks/{id}", 1L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Mark not found with id: 1"));
+    }
+
     private MarkRequest sampleRequest() {
         return new MarkRequest(85, 100, "A", "Well done", 1L, 2L);
     }
