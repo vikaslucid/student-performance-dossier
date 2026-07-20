@@ -192,6 +192,20 @@ class AuthServiceTest {
         assertThat(response.token()).isEqualTo("jwt-token");
         assertThat(response.username()).isEqualTo("ada");
         assertThat(response.role()).isEqualTo(Role.TEACHER);
+        assertThat(response.studentId()).isNull();
+    }
+
+    @Test
+    void login_whenStudentRoleWithLinkedStudent_returnsAuthResponseWithStudentId() {
+        Student linkedStudent = existingStudent(5L);
+        User user = existingUser(1L, "ada", "hashed-password", Role.STUDENT, linkedStudent);
+        when(userRepository.findByUsername("ada")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "hashed-password")).thenReturn(true);
+        when(jwtService.generateToken("ada", Role.STUDENT)).thenReturn("jwt-token");
+
+        AuthResponse response = authService.login(loginRequest);
+
+        assertThat(response.studentId()).isEqualTo(5L);
     }
 
     private User existingUser(Long id, String username, String hashedPassword, Role role, Student student) {

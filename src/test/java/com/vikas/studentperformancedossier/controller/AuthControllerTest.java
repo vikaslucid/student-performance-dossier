@@ -172,7 +172,7 @@ class AuthControllerTest {
     @Test
     void login_whenValid_returns200WithToken() throws Exception {
         LoginRequest request = new LoginRequest("ada", "password123");
-        when(authService.login(eq(request))).thenReturn(new AuthResponse("jwt-token", "ada", Role.TEACHER));
+        when(authService.login(eq(request))).thenReturn(new AuthResponse("jwt-token", "ada", Role.TEACHER, null));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

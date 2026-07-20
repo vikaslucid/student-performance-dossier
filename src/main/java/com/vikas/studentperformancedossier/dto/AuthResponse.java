@@ -5,6 +5,7 @@ import com.vikas.studentperformancedossier.entity.Role;
 public record AuthResponse(
         String token,
         String username,
-        Role role
+        Role role,
+        Long studentId
 ) {
 }

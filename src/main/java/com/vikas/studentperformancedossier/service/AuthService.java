@@ -82,7 +82,8 @@ public class AuthService {
         }
 
         String token = jwtService.generateToken(user.getUsername(), user.getRole());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        Long studentId = user.getStudent() == null ? null : user.getStudent().getId();
+        return new AuthResponse(token, user.getUsername(), user.getRole(), studentId);
     }
 
     private UserResponse toResponse(User user) {
