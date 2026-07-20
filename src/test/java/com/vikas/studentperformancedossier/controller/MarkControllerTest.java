@@ -5,6 +5,7 @@ import com.vikas.studentperformancedossier.config.SecurityConfig;
 import com.vikas.studentperformancedossier.dto.MarkRequest;
 import com.vikas.studentperformancedossier.dto.MarkResponse;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
+import com.vikas.studentperformancedossier.repository.UserRepository;
 import com.vikas.studentperformancedossier.service.MarkService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,9 @@ class MarkControllerTest {
 
     @MockitoBean
     private MarkService markService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     void getAllMarks_returnsList() throws Exception {

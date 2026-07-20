@@ -5,6 +5,7 @@ import com.vikas.studentperformancedossier.config.SecurityConfig;
 import com.vikas.studentperformancedossier.dto.ExamRequest;
 import com.vikas.studentperformancedossier.dto.ExamResponse;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
+import com.vikas.studentperformancedossier.repository.UserRepository;
 import com.vikas.studentperformancedossier.service.ExamService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ class ExamControllerTest {
 
     @MockitoBean
     private ExamService examService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     void getAllExams_returnsList() throws Exception {
