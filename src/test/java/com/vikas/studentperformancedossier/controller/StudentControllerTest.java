@@ -19,6 +19,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -47,6 +48,16 @@ class StudentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].email").value("ada@example.com"));
+    }
+
+    @Test
+    void getAllStudents_whenEmpty_returnsEmptyList() throws Exception {
+        when(studentService.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/students"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test
@@ -104,6 +115,78 @@ class StudentControllerTest {
     }
 
     @Test
+    void createStudent_whenLastNameBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.lastName").exists());
+    }
+
+    @Test
+    void createStudent_whenStudentNumberBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                ""
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.studentNumber").exists());
+    }
+
+    @Test
+    void createStudent_whenEnrollmentDateInFuture_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.now().plusDays(1),
+                "S-100"
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.enrollmentDate").exists());
+    }
+
+    @Test
+    void createStudent_whenDateOfBirthNotInPast_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.now(),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.dateOfBirth").exists());
+    }
+
+    @Test
     void createStudent_whenDuplicate_returns409() throws Exception {
         StudentRequest request = sampleRequest();
         when(studentService.create(eq(request)))
@@ -129,9 +212,138 @@ class StudentControllerTest {
     }
 
     @Test
+    void updateStudent_whenMissing_returns404() throws Exception {
+        StudentRequest request = sampleRequest();
+        when(studentService.update(eq(99L), eq(request)))
+                .thenThrow(new EntityNotFoundException("Student not found with id: 99"));
+
+        mockMvc.perform(put("/api/students/{id}", 99L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Student not found with id: 99"));
+    }
+
+    @Test
+    void updateStudent_whenDuplicate_returns409() throws Exception {
+        StudentRequest request = sampleRequest();
+        when(studentService.update(eq(1L), eq(request)))
+                .thenThrow(new DuplicateResourceException("A student with email 'ada@example.com' already exists"));
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("A student with email 'ada@example.com' already exists"));
+    }
+
+    @Test
+    void updateStudent_whenInvalid_returns400WithFieldErrors() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "",
+                "Lovelace",
+                "not-an-email",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Validation failed for one or more fields"))
+                .andExpect(jsonPath("$.errors.firstName").exists())
+                .andExpect(jsonPath("$.errors.email").exists())
+                .andExpect(jsonPath("$.errors.dateOfBirth").exists());
+    }
+
+    @Test
+    void updateStudent_whenLastNameBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.lastName").exists());
+    }
+
+    @Test
+    void updateStudent_whenStudentNumberBlank_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                ""
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.studentNumber").exists());
+    }
+
+    @Test
+    void updateStudent_whenEnrollmentDateInFuture_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.now().plusDays(1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.enrollmentDate").exists());
+    }
+
+    @Test
+    void updateStudent_whenDateOfBirthNotInPast_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.now(),
+                LocalDate.of(2020, 1, 1),
+                "S-100"
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.dateOfBirth").exists());
+    }
+
+    @Test
     void deleteStudent_returns204() throws Exception {
         mockMvc.perform(delete("/api/students/{id}", 1L))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteStudent_whenMissing_returns404() throws Exception {
+        doThrow(new EntityNotFoundException("Student not found with id: 99"))
+                .when(studentService).delete(99L);
+
+        mockMvc.perform(delete("/api/students/{id}", 99L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Student not found with id: 99"));
     }
 
     private StudentRequest sampleRequest() {
