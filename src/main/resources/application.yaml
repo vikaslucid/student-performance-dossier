@@ -1,7 +1,7 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/student_performance_dossier
-    username: postgres
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/student_performance_dossier}
+    username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
