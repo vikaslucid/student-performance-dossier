@@ -2,8 +2,10 @@ package com.vikas.studentperformancedossier.service;
 
 import com.vikas.studentperformancedossier.dto.StudentRequest;
 import com.vikas.studentperformancedossier.dto.StudentResponse;
+import com.vikas.studentperformancedossier.entity.SchoolClass;
 import com.vikas.studentperformancedossier.entity.Student;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
+import com.vikas.studentperformancedossier.repository.SchoolClassRepository;
 import com.vikas.studentperformancedossier.repository.StudentRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
@@ -14,9 +16,11 @@ import java.util.List;
 public class StudentService {
 
     private final StudentRepository studentRepository;
+    private final SchoolClassRepository schoolClassRepository;
 
-    public StudentService(StudentRepository studentRepository) {
+    public StudentService(StudentRepository studentRepository, SchoolClassRepository schoolClassRepository) {
         this.studentRepository = studentRepository;
+        this.schoolClassRepository = schoolClassRepository;
     }
 
     public List<StudentResponse> findAll() {
@@ -31,15 +35,17 @@ public class StudentService {
 
     public StudentResponse create(StudentRequest request) {
         ensureUnique(request, null);
+        SchoolClass schoolClass = findSchoolClassById(request.schoolClassId());
         Student student = new Student();
-        applyRequest(student, request);
+        applyRequest(student, request, schoolClass);
         return toResponse(studentRepository.save(student));
     }
 
     public StudentResponse update(Long id, StudentRequest request) {
         ensureUnique(request, id);
         Student existing = findEntityById(id);
-        applyRequest(existing, request);
+        SchoolClass schoolClass = findSchoolClassById(request.schoolClassId());
+        applyRequest(existing, request, schoolClass);
         return toResponse(studentRepository.save(existing));
     }
 
@@ -72,13 +78,19 @@ public class StudentService {
                 .orElseThrow(() -> new EntityNotFoundException("Student not found with id: " + id));
     }
 
-    private void applyRequest(Student student, StudentRequest request) {
+    private SchoolClass findSchoolClassById(Long schoolClassId) {
+        return schoolClassRepository.findById(schoolClassId)
+                .orElseThrow(() -> new EntityNotFoundException("School class not found with id: " + schoolClassId));
+    }
+
+    private void applyRequest(Student student, StudentRequest request, SchoolClass schoolClass) {
         student.setFirstName(request.firstName());
         student.setLastName(request.lastName());
         student.setEmail(request.email());
         student.setDateOfBirth(request.dateOfBirth());
         student.setEnrollmentDate(request.enrollmentDate());
         student.setStudentNumber(request.studentNumber());
+        student.setSchoolClass(schoolClass);
     }
 
     private StudentResponse toResponse(Student student) {
@@ -90,6 +102,7 @@ public class StudentService {
                 student.getDateOfBirth(),
                 student.getEnrollmentDate(),
                 student.getStudentNumber(),
+                student.getSchoolClass().getId(),
                 student.getCreatedAt(),
                 student.getUpdatedAt()
         );

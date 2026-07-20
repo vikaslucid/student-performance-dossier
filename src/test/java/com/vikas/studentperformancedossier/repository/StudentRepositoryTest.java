@@ -1,6 +1,8 @@
 package com.vikas.studentperformancedossier.repository;
 
 import com.vikas.studentperformancedossier.config.JpaAuditingConfig;
+import com.vikas.studentperformancedossier.entity.School;
+import com.vikas.studentperformancedossier.entity.SchoolClass;
 import com.vikas.studentperformancedossier.entity.Student;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +69,20 @@ class StudentRepositoryTest {
         student.setDateOfBirth(LocalDate.of(1990, 1, 1));
         student.setEnrollmentDate(LocalDate.of(2020, 1, 1));
         student.setStudentNumber(studentNumber);
+        student.setSchoolClass(persistedSchoolClass());
         return entityManager.persistFlushFind(student);
+    }
+
+    private SchoolClass persistedSchoolClass() {
+        School school = new School();
+        school.setName("Central High");
+        school.setAddress("123 Main St");
+        entityManager.persistAndFlush(school);
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setGrade("Grade 10");
+        schoolClass.setSection("A");
+        schoolClass.setSchool(school);
+        return entityManager.persistFlushFind(schoolClass);
     }
 }

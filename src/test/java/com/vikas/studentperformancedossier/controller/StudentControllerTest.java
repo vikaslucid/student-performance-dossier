@@ -101,7 +101,8 @@ class StudentControllerTest {
                 "not-an-email",
                 LocalDate.now().plusDays(1),
                 LocalDate.now().plusDays(1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(post("/api/students")
@@ -122,7 +123,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(post("/api/students")
@@ -140,7 +142,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
-                ""
+                "",
+                1L
         );
 
         mockMvc.perform(post("/api/students")
@@ -151,6 +154,25 @@ class StudentControllerTest {
     }
 
     @Test
+    void createStudent_whenSchoolClassIdMissing_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                "S-100",
+                null
+        );
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.schoolClassId").exists());
+    }
+
+    @Test
     void createStudent_whenEnrollmentDateInFuture_returns400() throws Exception {
         StudentRequest invalidRequest = new StudentRequest(
                 "Ada",
@@ -158,7 +180,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.now().plusDays(1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(post("/api/students")
@@ -176,7 +199,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.now(),
                 LocalDate.of(2020, 1, 1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(post("/api/students")
@@ -197,6 +221,19 @@ class StudentControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("A student with email 'ada@example.com' already exists"));
+    }
+
+    @Test
+    void createStudent_whenSchoolClassNotFound_returns404() throws Exception {
+        StudentRequest request = sampleRequest();
+        when(studentService.create(eq(request)))
+                .thenThrow(new EntityNotFoundException("School class not found with id: 1"));
+
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("School class not found with id: 1"));
     }
 
     @Test
@@ -245,7 +282,8 @@ class StudentControllerTest {
                 "not-an-email",
                 LocalDate.now().plusDays(1),
                 LocalDate.now().plusDays(1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(put("/api/students/{id}", 1L)
@@ -266,7 +304,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(put("/api/students/{id}", 1L)
@@ -284,7 +323,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
-                ""
+                "",
+                1L
         );
 
         mockMvc.perform(put("/api/students/{id}", 1L)
@@ -295,6 +335,25 @@ class StudentControllerTest {
     }
 
     @Test
+    void updateStudent_whenSchoolClassIdMissing_returns400() throws Exception {
+        StudentRequest invalidRequest = new StudentRequest(
+                "Ada",
+                "Lovelace",
+                "ada@example.com",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
+                "S-100",
+                null
+        );
+
+        mockMvc.perform(put("/api/students/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.schoolClassId").exists());
+    }
+
+    @Test
     void updateStudent_whenEnrollmentDateInFuture_returns400() throws Exception {
         StudentRequest invalidRequest = new StudentRequest(
                 "Ada",
@@ -302,7 +361,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.now().plusDays(1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(put("/api/students/{id}", 1L)
@@ -320,7 +380,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.now(),
                 LocalDate.of(2020, 1, 1),
-                "S-100"
+                "S-100",
+                1L
         );
 
         mockMvc.perform(put("/api/students/{id}", 1L)
@@ -353,7 +414,8 @@ class StudentControllerTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
-                "S-100"
+                "S-100",
+                1L
         );
     }
 
@@ -366,6 +428,7 @@ class StudentControllerTest {
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
                 "S-100",
+                1L,
                 LocalDateTime.of(2026, 1, 1, 0, 0),
                 LocalDateTime.of(2026, 1, 1, 0, 0)
         );

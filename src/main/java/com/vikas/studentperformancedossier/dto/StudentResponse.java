@@ -11,6 +11,7 @@ public record StudentResponse(
         LocalDate dateOfBirth,
         LocalDate enrollmentDate,
         String studentNumber,
+        Long schoolClassId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

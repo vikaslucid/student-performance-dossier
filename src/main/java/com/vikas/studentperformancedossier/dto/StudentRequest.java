@@ -14,6 +14,7 @@ public record StudentRequest(
         @NotBlank @Email String email,
         @NotNull @Past LocalDate dateOfBirth,
         @NotNull @PastOrPresent LocalDate enrollmentDate,
-        @NotBlank String studentNumber
+        @NotBlank String studentNumber,
+        @NotNull Long schoolClassId
 ) {
 }

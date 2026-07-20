@@ -2,8 +2,10 @@ package com.vikas.studentperformancedossier.service;
 
 import com.vikas.studentperformancedossier.dto.StudentRequest;
 import com.vikas.studentperformancedossier.dto.StudentResponse;
+import com.vikas.studentperformancedossier.entity.SchoolClass;
 import com.vikas.studentperformancedossier.entity.Student;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
+import com.vikas.studentperformancedossier.repository.SchoolClassRepository;
 import com.vikas.studentperformancedossier.repository.StudentRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,9 @@ class StudentServiceTest {
     @Mock
     private StudentRepository studentRepository;
 
+    @Mock
+    private SchoolClassRepository schoolClassRepository;
+
     @InjectMocks
     private StudentService studentService;
 
@@ -42,7 +47,8 @@ class StudentServiceTest {
                 "ada@example.com",
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
-                "S-100"
+                "S-100",
+                1L
         );
     }
 
@@ -72,9 +78,23 @@ class StudentServiceTest {
     }
 
     @Test
+    void create_whenSchoolClassNotFound_throwsEntityNotFoundException() {
+        when(studentRepository.findByEmail("ada@example.com")).thenReturn(Optional.empty());
+        when(studentRepository.findByStudentNumber("S-100")).thenReturn(Optional.empty());
+        when(schoolClassRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> studentService.create(request))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("1");
+
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
     void create_whenNoDuplicates_savesStudent() {
         when(studentRepository.findByEmail("ada@example.com")).thenReturn(Optional.empty());
         when(studentRepository.findByStudentNumber("S-100")).thenReturn(Optional.empty());
+        when(schoolClassRepository.findById(1L)).thenReturn(Optional.of(existingSchoolClass(1L)));
         when(studentRepository.save(any(Student.class)))
                 .thenReturn(existingStudent(1L, "ada@example.com", "S-100"));
 
@@ -82,6 +102,7 @@ class StudentServiceTest {
 
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.email()).isEqualTo("ada@example.com");
+        assertThat(response.schoolClassId()).isEqualTo(1L);
     }
 
     @Test
@@ -111,11 +132,27 @@ class StudentServiceTest {
     }
 
     @Test
+    void update_whenSchoolClassNotFound_throwsEntityNotFoundException() {
+        Student self = existingStudent(1L, "ada@example.com", "S-100");
+        when(studentRepository.findByEmail("ada@example.com")).thenReturn(Optional.of(self));
+        when(studentRepository.findByStudentNumber("S-100")).thenReturn(Optional.of(self));
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(self));
+        when(schoolClassRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> studentService.update(1L, request))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("1");
+
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
     void update_whenEmailAndStudentNumberBelongToSameStudent_updatesSuccessfully() {
         Student self = existingStudent(1L, "ada@example.com", "S-100");
         when(studentRepository.findByEmail("ada@example.com")).thenReturn(Optional.of(self));
         when(studentRepository.findByStudentNumber("S-100")).thenReturn(Optional.of(self));
         when(studentRepository.findById(1L)).thenReturn(Optional.of(self));
+        when(schoolClassRepository.findById(1L)).thenReturn(Optional.of(existingSchoolClass(1L)));
         when(studentRepository.save(any(Student.class))).thenReturn(self);
 
         StudentResponse response = studentService.update(1L, request);
@@ -167,6 +204,15 @@ class StudentServiceTest {
         student.setDateOfBirth(LocalDate.of(1990, 1, 1));
         student.setEnrollmentDate(LocalDate.of(2020, 1, 1));
         student.setStudentNumber(studentNumber);
+        student.setSchoolClass(existingSchoolClass(1L));
         return student;
+    }
+
+    private SchoolClass existingSchoolClass(Long id) {
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setId(id);
+        schoolClass.setGrade("Grade 10");
+        schoolClass.setSection("A");
+        return schoolClass;
     }
 }
