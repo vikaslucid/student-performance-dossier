@@ -50,7 +50,7 @@ services:
       - key: JWT_EXPIRATION_MS
         value: 3600000
       - key: CORS_ALLOWED_ORIGINS
-        value: https://student-performance-dossier-frontend.onrender.com
+        value: https://student-performance-dossier-frontend.onrender.com,https://dossier.lucidpoint.in
 
   - type: web
     name: student-performance-dossier-frontend
@@ -60,7 +60,7 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://student-performance-dossier-backend.onrender.com
+        value: https://api.lucidpoint.in
     routes:
       - type: rewrite
         source: /*
