@@ -1,0 +1,104 @@
+package com.vikas.studentperformancedossier.repository;
+
+import com.vikas.studentperformancedossier.config.JpaAuditingConfig;
+import com.vikas.studentperformancedossier.entity.Exam;
+import com.vikas.studentperformancedossier.entity.Mark;
+import com.vikas.studentperformancedossier.entity.School;
+import com.vikas.studentperformancedossier.entity.SchoolClass;
+import com.vikas.studentperformancedossier.entity.Student;
+import com.vikas.studentperformancedossier.entity.Subject;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
+
+import java.time.LocalDate;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(JpaAuditingConfig.class)
+class MarkRepositoryTest {
+
+    @Autowired
+    private TestEntityManager entityManager;
+
+    @Autowired
+    private MarkRepository markRepository;
+
+    @Test
+    void findByStudentIdAndExamId_whenExists_returnsMark() {
+        Student student = persistedStudent();
+        Exam exam = persistedExam();
+        Mark mark = persistedMark(student, exam);
+
+        Optional<Mark> found = markRepository.findByStudent_IdAndExam_Id(student.getId(), exam.getId());
+
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(mark.getId());
+    }
+
+    @Test
+    void findByStudentIdAndExamId_whenMissing_returnsEmpty() {
+        Student student = persistedStudent();
+        Exam exam = persistedExam();
+
+        Optional<Mark> found = markRepository.findByStudent_IdAndExam_Id(student.getId(), exam.getId());
+
+        assertThat(found).isEmpty();
+    }
+
+    private SchoolClass persistedSchoolClass() {
+        School school = new School();
+        school.setName("Central High");
+        school.setAddress("123 Main St");
+        entityManager.persistAndFlush(school);
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setGrade("Grade 10");
+        schoolClass.setSection("A");
+        schoolClass.setSchool(school);
+        return entityManager.persistFlushFind(schoolClass);
+    }
+
+    private Student persistedStudent() {
+        Student student = new Student();
+        student.setFirstName("Ada");
+        student.setLastName("Lovelace");
+        student.setEmail("ada@example.com");
+        student.setDateOfBirth(LocalDate.of(1990, 1, 1));
+        student.setEnrollmentDate(LocalDate.of(2020, 1, 1));
+        student.setStudentNumber("S-100");
+        student.setSchoolClass(persistedSchoolClass());
+        return entityManager.persistFlushFind(student);
+    }
+
+    private Exam persistedExam() {
+        Subject subject = new Subject();
+        subject.setName("Mathematics");
+        subject.setGradeLevel("Grade 10");
+        entityManager.persistAndFlush(subject);
+
+        Exam exam = new Exam();
+        exam.setName("Midterm");
+        exam.setExamDate(LocalDate.of(2026, 3, 1));
+        exam.setSchoolClass(persistedSchoolClass());
+        exam.setSubject(subject);
+        return entityManager.persistFlushFind(exam);
+    }
+
+    private Mark persistedMark(Student student, Exam exam) {
+        Mark mark = new Mark();
+        mark.setObtainedMarks(85);
+        mark.setMaximumMarks(100);
+        mark.setGrade("A");
+        mark.setRemarks("Well done");
+        mark.setStudent(student);
+        mark.setExam(exam);
+        return entityManager.persistFlushFind(mark);
+    }
+}
