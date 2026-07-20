@@ -1,0 +1,68 @@
+# Render Blueprint - deploys the full stack (db + backend + frontend) in one go.
+#
+# Usage:
+#   1. Push this file to the backend repo's default branch.
+#   2. In the Render dashboard: New -> Blueprint -> connect this repo.
+#   3. Render reads this file and provisions all three resources below.
+#
+# Update the two "repo:" URLs if your GitHub usernames/repo names differ.
+# After the first deploy, Render assigns each web service a URL of the form
+# https://<name>.onrender.com (unless that name is already taken elsewhere on
+# Render, in which case it appends a random suffix - check the actual URLs in
+# the dashboard and update CORS_ALLOWED_ORIGINS / VITE_API_BASE_URL below to
+# match if they differ, then redeploy).
+
+databases:
+  - name: student-performance-dossier-db
+    databaseName: student_performance_dossier
+    user: postgres
+    plan: free
+
+services:
+  - type: web
+    name: student-performance-dossier-backend
+    runtime: docker
+    repo: https://github.com/vikaslucid/student-performance-dossier
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: student-performance-dossier-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: student-performance-dossier-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: student-performance-dossier-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: student-performance-dossier-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: student-performance-dossier-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: 3600000
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://student-performance-dossier-frontend.onrender.com
+
+  - type: web
+    name: student-performance-dossier-frontend
+    runtime: static
+    repo: https://github.com/vikaslucid/student-performance-dossier-frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://student-performance-dossier-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
