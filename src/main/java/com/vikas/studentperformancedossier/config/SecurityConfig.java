@@ -3,6 +3,7 @@ package com.vikas.studentperformancedossier.config;
 import com.vikas.studentperformancedossier.repository.UserRepository;
 import com.vikas.studentperformancedossier.security.JwtAuthenticationFilter;
 import com.vikas.studentperformancedossier.security.JwtService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -55,14 +57,24 @@ public class SecurityConfig {
         return new JwtAuthenticationFilter(jwtService, userDetailsService);
     }
 
+    // Without this, Spring Security has no AuthenticationEntryPoint registered (we don't use
+    // httpBasic()/formLogin()) and falls back to returning 403 for missing/invalid credentials
+    // too, which collapses the 401 (not authenticated) vs 403 (authenticated, wrong role)
+    // distinction that REST clients rely on.
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+    }
+
     // Registration/login stay public; everything else requires a valid JWT. Role-specific
     // rules beyond "authenticated" are enforced with @PreAuthorize on controller methods.
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                     AuthenticationEntryPoint authenticationEntryPoint) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated())

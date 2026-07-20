@@ -262,6 +262,34 @@ class MarkControllerTest {
                 .andExpect(jsonPath("$.detail").value("Mark not found with id: 99"));
     }
 
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void createMark_whenTeacherRole_returns201() throws Exception {
+        MarkRequest request = sampleRequest();
+        when(markService.create(eq(request))).thenReturn(sampleResponse(1L));
+
+        mockMvc.perform(post("/api/marks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void createMark_whenStudentRole_returns403() throws Exception {
+        mockMvc.perform(post("/api/marks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleRequest())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void deleteMark_whenTeacherRole_returns403() throws Exception {
+        mockMvc.perform(delete("/api/marks/{id}", 1L))
+                .andExpect(status().isForbidden());
+    }
+
     private MarkRequest sampleRequest() {
         return new MarkRequest(85, 100, "A", "Well done", 1L, 2L);
     }

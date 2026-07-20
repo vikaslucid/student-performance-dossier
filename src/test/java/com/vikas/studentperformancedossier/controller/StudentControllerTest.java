@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -414,6 +415,40 @@ class StudentControllerTest {
         mockMvc.perform(delete("/api/students/{id}", 99L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("Student not found with id: 99"));
+    }
+
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void createStudent_whenTeacherRole_returns403() throws Exception {
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleRequest())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void createStudent_whenStudentRole_returns403() throws Exception {
+        mockMvc.perform(post("/api/students")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleRequest())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void getAllStudents_whenStudentRole_returns200() throws Exception {
+        when(studentService.findAll()).thenReturn(List.of(sampleResponse(1L)));
+
+        mockMvc.perform(get("/api/students"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithAnonymousUser
+    void getAllStudents_whenUnauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/students"))
+                .andExpect(status().isUnauthorized());
     }
 
     private StudentRequest sampleRequest() {

@@ -255,6 +255,34 @@ class ExamControllerTest {
                 .andExpect(jsonPath("$.detail").value("Exam not found with id: 99"));
     }
 
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void createExam_whenTeacherRole_returns201() throws Exception {
+        ExamRequest request = sampleRequest();
+        when(examService.create(eq(request))).thenReturn(sampleResponse(1L));
+
+        mockMvc.perform(post("/api/exams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void createExam_whenStudentRole_returns403() throws Exception {
+        mockMvc.perform(post("/api/exams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleRequest())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void deleteExam_whenTeacherRole_returns403() throws Exception {
+        mockMvc.perform(delete("/api/exams/{id}", 1L))
+                .andExpect(status().isForbidden());
+    }
+
     private ExamRequest sampleRequest() {
         return new ExamRequest("Midterm", LocalDate.of(2026, 3, 1), 1L, 2L);
     }
