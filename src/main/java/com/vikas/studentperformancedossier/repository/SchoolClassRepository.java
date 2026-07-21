@@ -10,5 +10,5 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> 
 
     Optional<SchoolClass> findBySchool_IdAndGradeAndSection(Long schoolId, String grade, String section);
 
-    List<SchoolClass> findByGradeAndSection(String grade, String section);
+    List<SchoolClass> findByGrade(String grade);
 }

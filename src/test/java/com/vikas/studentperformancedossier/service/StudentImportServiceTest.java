@@ -26,10 +26,14 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+// Column order under test: Session | Class | Admission Date | Admission No. | Name |
+// Father's Name | Father's Mobile | Mother's Name | Mother's Mobile | Address |
+// Primary Parent | Primary Parent Mobile
 @ExtendWith(MockitoExtension.class)
 class StudentImportServiceTest {
 
@@ -60,15 +64,14 @@ class StudentImportServiceTest {
     }
 
     @Test
-    void importFromExcel_whenValidRow_importsSuccessfully() throws IOException {
-        when(schoolClassRepository.findByGradeAndSection("Grade 10", "A"))
-                .thenReturn(List.of(schoolClass(1L)));
+    void importFromExcel_whenValidRow_importsSuccessfullyAndSplitsName() throws IOException {
+        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class)))
-                .thenReturn(new StudentResponse(1L, "Ada", "Lovelace", "ada@example.com",
-                        LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1), "S-100", 1L, null, null));
+                .thenReturn(sampleResponse());
 
         MultipartFile file = workbookWithRows(
-                new String[]{"Ada", "Lovelace", "ada@example.com", "1990-01-01", "2020-01-01", "S-100", "Grade 10", "A"}
+                new String[]{"2024-25", "10", "2020-01-01", "S-100", "Ada Lovelace",
+                        "Father", "9990000001", "Mother", "9990000002", "123 Main St", "Father", "9990000001"}
         );
 
         StudentImportResult result = studentImportService.importFromExcel(file);
@@ -76,14 +79,33 @@ class StudentImportServiceTest {
         assertThat(result.importedCount()).isEqualTo(1);
         assertThat(result.errors()).isEmpty();
         verify(studentService).create(new StudentRequest(
-                "Ada", "Lovelace", "ada@example.com",
-                LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1), "S-100", 1L));
+                "Ada", "Lovelace", null, null,
+                LocalDate.of(2020, 1, 1), "S-100", 1L,
+                "2024-25", "Father", "9990000001", "Mother", "9990000002",
+                "123 Main St", "Father", "9990000001"));
+    }
+
+    @Test
+    void importFromExcel_whenSingleWordName_lastNameIsEmpty() throws IOException {
+        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
+
+        MultipartFile file = workbookWithRows(
+                new String[]{"", "10", "2020-01-01", "S-100", "Madonna", "", "", "", "", "", "", ""}
+        );
+
+        studentImportService.importFromExcel(file);
+
+        verify(studentService).create(eq(new StudentRequest(
+                "Madonna", "", null, null,
+                LocalDate.of(2020, 1, 1), "S-100", 1L,
+                null, null, null, null, null, null, null, null)));
     }
 
     @Test
     void importFromExcel_whenRequiredFieldBlank_recordsRowErrorAndSkipsRow() throws IOException {
         MultipartFile file = workbookWithRows(
-                new String[]{"", "Lovelace", "ada@example.com", "1990-01-01", "2020-01-01", "S-100", "Grade 10", "A"}
+                new String[]{"", "10", "2020-01-01", "S-100", "", "", "", "", "", "", "", ""}
         );
 
         StudentImportResult result = studentImportService.importFromExcel(file);
@@ -91,16 +113,16 @@ class StudentImportServiceTest {
         assertThat(result.importedCount()).isEqualTo(0);
         assertThat(result.errors()).hasSize(1);
         assertThat(result.errors().get(0).rowNumber()).isEqualTo(2);
-        assertThat(result.errors().get(0).message()).contains("First Name");
+        assertThat(result.errors().get(0).message()).contains("Name");
         verify(studentService, never()).create(any());
     }
 
     @Test
-    void importFromExcel_whenSchoolClassNotFound_recordsRowError() throws IOException {
-        when(schoolClassRepository.findByGradeAndSection("Grade 10", "Z")).thenReturn(List.of());
+    void importFromExcel_whenClassNotFound_recordsRowError() throws IOException {
+        when(schoolClassRepository.findByGrade("99")).thenReturn(List.of());
 
         MultipartFile file = workbookWithRows(
-                new String[]{"Ada", "Lovelace", "ada@example.com", "1990-01-01", "2020-01-01", "S-100", "Grade 10", "Z"}
+                new String[]{"", "99", "2020-01-01", "S-100", "Ada Lovelace", "", "", "", "", "", "", ""}
         );
 
         StudentImportResult result = studentImportService.importFromExcel(file);
@@ -112,12 +134,11 @@ class StudentImportServiceTest {
     }
 
     @Test
-    void importFromExcel_whenGradeSectionAmbiguous_recordsRowError() throws IOException {
-        when(schoolClassRepository.findByGradeAndSection("Grade 10", "A"))
-                .thenReturn(List.of(schoolClass(1L), schoolClass(2L)));
+    void importFromExcel_whenClassAmbiguous_recordsRowError() throws IOException {
+        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L), schoolClass(2L)));
 
         MultipartFile file = workbookWithRows(
-                new String[]{"Ada", "Lovelace", "ada@example.com", "1990-01-01", "2020-01-01", "S-100", "Grade 10", "A"}
+                new String[]{"", "10", "2020-01-01", "S-100", "Ada Lovelace", "", "", "", "", "", "", ""}
         );
 
         StudentImportResult result = studentImportService.importFromExcel(file);
@@ -130,28 +151,26 @@ class StudentImportServiceTest {
     @Test
     void importFromExcel_whenInvalidDate_recordsRowError() throws IOException {
         MultipartFile file = workbookWithRows(
-                new String[]{"Ada", "Lovelace", "ada@example.com", "not-a-date", "2020-01-01", "S-100", "Grade 10", "A"}
+                new String[]{"", "10", "not-a-date", "S-100", "Ada Lovelace", "", "", "", "", "", "", ""}
         );
 
         StudentImportResult result = studentImportService.importFromExcel(file);
 
         assertThat(result.importedCount()).isEqualTo(0);
         assertThat(result.errors()).hasSize(1);
-        assertThat(result.errors().get(0).message()).contains("Date of Birth");
+        assertThat(result.errors().get(0).message()).contains("Admission Date");
     }
 
     @Test
-    void importFromExcel_whenDuplicateEmail_recordsRowErrorButContinuesOtherRows() throws IOException {
-        when(schoolClassRepository.findByGradeAndSection("Grade 10", "A"))
-                .thenReturn(List.of(schoolClass(1L)));
+    void importFromExcel_whenDuplicateStudentNumber_recordsRowErrorButContinuesOtherRows() throws IOException {
+        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class)))
-                .thenThrow(new DuplicateResourceException("A student with email 'ada@example.com' already exists"))
-                .thenReturn(new StudentResponse(2L, "Grace", "Hopper", "grace@example.com",
-                        LocalDate.of(1991, 1, 1), LocalDate.of(2020, 1, 1), "S-101", 1L, null, null));
+                .thenThrow(new DuplicateResourceException("A student with student number 'S-100' already exists"))
+                .thenReturn(sampleResponse());
 
         MultipartFile file = workbookWithRows(
-                new String[]{"Ada", "Lovelace", "ada@example.com", "1990-01-01", "2020-01-01", "S-100", "Grade 10", "A"},
-                new String[]{"Grace", "Hopper", "grace@example.com", "1991-01-01", "2020-01-01", "S-101", "Grade 10", "A"}
+                new String[]{"", "10", "2020-01-01", "S-100", "Ada Lovelace", "", "", "", "", "", "", ""},
+                new String[]{"", "10", "2020-01-01", "S-101", "Grace Hopper", "", "", "", "", "", "", ""}
         );
 
         StudentImportResult result = studentImportService.importFromExcel(file);
@@ -159,20 +178,17 @@ class StudentImportServiceTest {
         assertThat(result.importedCount()).isEqualTo(1);
         assertThat(result.errors()).hasSize(1);
         assertThat(result.errors().get(0).rowNumber()).isEqualTo(2);
-        assertThat(result.errors().get(0).message()).contains("ada@example.com");
+        assertThat(result.errors().get(0).message()).contains("S-100");
     }
 
     @Test
     void importFromExcel_whenBlankRow_skipsWithoutError() throws IOException {
-        when(schoolClassRepository.findByGradeAndSection("Grade 10", "A"))
-                .thenReturn(List.of(schoolClass(1L)));
-        when(studentService.create(any(StudentRequest.class)))
-                .thenReturn(new StudentResponse(1L, "Ada", "Lovelace", "ada@example.com",
-                        LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1), "S-100", 1L, null, null));
+        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
 
         MultipartFile file = workbookWithRows(
-                new String[]{"", "", "", "", "", "", "", ""},
-                new String[]{"Ada", "Lovelace", "ada@example.com", "1990-01-01", "2020-01-01", "S-100", "Grade 10", "A"}
+                new String[]{"", "", "", "", "", "", "", "", "", "", "", ""},
+                new String[]{"", "10", "2020-01-01", "S-100", "Ada Lovelace", "", "", "", "", "", "", ""}
         );
 
         StudentImportResult result = studentImportService.importFromExcel(file);
@@ -184,17 +200,24 @@ class StudentImportServiceTest {
     private SchoolClass schoolClass(Long id) {
         SchoolClass schoolClass = new SchoolClass();
         schoolClass.setId(id);
-        schoolClass.setGrade("Grade 10");
+        schoolClass.setGrade("10");
         schoolClass.setSection("A");
         return schoolClass;
+    }
+
+    private StudentResponse sampleResponse() {
+        return new StudentResponse(1L, "Ada", "Lovelace", null, null,
+                LocalDate.of(2020, 1, 1), "S-100", 1L,
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     private MultipartFile workbookWithRows(String[]... rows) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet("Students");
             Row header = sheet.createRow(0);
-            String[] headers = {"First Name", "Last Name", "Email", "Date of Birth", "Enrollment Date",
-                    "Student Number", "Grade", "Section"};
+            String[] headers = {"Session", "Class", "Admission Date", "Admission No.", "Name",
+                    "Father's Name", "Father's Mobile", "Mother's Name", "Mother's Mobile", "Address",
+                    "Primary Parent", "Primary Parent Mobile"};
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }

@@ -19,10 +19,9 @@ public class Student extends BaseEntity {
     @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     private String email;
 
-    @Column(nullable = false)
     private LocalDate dateOfBirth;
 
     @Column(nullable = false)
@@ -34,6 +33,22 @@ public class Student extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_class_id", nullable = false)
     private SchoolClass schoolClass;
+
+    private String session;
+
+    private String fatherName;
+
+    private String fatherMobile;
+
+    private String motherName;
+
+    private String motherMobile;
+
+    private String address;
+
+    private String primaryParent;
+
+    private String primaryParentMobile;
 
     public String getFirstName() {
         return firstName;
@@ -89,5 +104,69 @@ public class Student extends BaseEntity {
 
     public void setSchoolClass(SchoolClass schoolClass) {
         this.schoolClass = schoolClass;
+    }
+
+    public String getSession() {
+        return session;
+    }
+
+    public void setSession(String session) {
+        this.session = session;
+    }
+
+    public String getFatherName() {
+        return fatherName;
+    }
+
+    public void setFatherName(String fatherName) {
+        this.fatherName = fatherName;
+    }
+
+    public String getFatherMobile() {
+        return fatherMobile;
+    }
+
+    public void setFatherMobile(String fatherMobile) {
+        this.fatherMobile = fatherMobile;
+    }
+
+    public String getMotherName() {
+        return motherName;
+    }
+
+    public void setMotherName(String motherName) {
+        this.motherName = motherName;
+    }
+
+    public String getMotherMobile() {
+        return motherMobile;
+    }
+
+    public void setMotherMobile(String motherMobile) {
+        this.motherMobile = motherMobile;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getPrimaryParent() {
+        return primaryParent;
+    }
+
+    public void setPrimaryParent(String primaryParent) {
+        this.primaryParent = primaryParent;
+    }
+
+    public String getPrimaryParentMobile() {
+        return primaryParentMobile;
+    }
+
+    public void setPrimaryParentMobile(String primaryParentMobile) {
+        this.primaryParentMobile = primaryParentMobile;
     }
 }

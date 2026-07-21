@@ -48,7 +48,8 @@ class StudentServiceTest {
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
                 "S-100",
-                1L
+                1L,
+                null, null, null, null, null, null, null, null
         );
     }
 
@@ -103,6 +104,25 @@ class StudentServiceTest {
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.email()).isEqualTo("ada@example.com");
         assertThat(response.schoolClassId()).isEqualTo(1L);
+    }
+
+    @Test
+    void create_whenEmailNull_skipsEmailUniquenessCheckAndSaves() {
+        StudentRequest requestWithoutEmail = new StudentRequest(
+                "Ada", "Lovelace", null, null,
+                LocalDate.of(2020, 1, 1), "S-100", 1L,
+                "2024-25", "Father", "9990000000", "Mother", "9990000001",
+                "123 Main St", "Father", "9990000000"
+        );
+        when(studentRepository.findByStudentNumber("S-100")).thenReturn(Optional.empty());
+        when(schoolClassRepository.findById(1L)).thenReturn(Optional.of(existingSchoolClass(1L)));
+        when(studentRepository.save(any(Student.class)))
+                .thenReturn(existingStudent(1L, null, "S-100"));
+
+        StudentResponse response = studentService.create(requestWithoutEmail);
+
+        assertThat(response.id()).isEqualTo(1L);
+        verify(studentRepository, never()).findByEmail(any());
     }
 
     @Test

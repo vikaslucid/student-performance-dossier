@@ -121,7 +121,8 @@ class StudentControllerTest {
                 LocalDate.now().plusDays(1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/students")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -143,7 +144,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/students")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -162,7 +164,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/students")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -181,7 +184,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 null
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/students")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -200,7 +204,8 @@ class StudentControllerTest {
                 LocalDate.now().plusDays(1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/students")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -219,7 +224,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/students")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -302,7 +308,8 @@ class StudentControllerTest {
                 LocalDate.now().plusDays(1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/api/students/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -324,7 +331,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/api/students/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -343,7 +351,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/api/students/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -362,7 +371,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 null
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/api/students/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -381,7 +391,8 @@ class StudentControllerTest {
                 LocalDate.now().plusDays(1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/api/students/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -400,7 +411,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/api/students/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -492,7 +504,8 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 1L
-        );
+        ,
+                null, null, null, null, null, null, null, null);
     }
 
     private StudentResponse sampleResponse(Long id) {
@@ -505,6 +518,7 @@ class StudentControllerTest {
                 LocalDate.of(2020, 1, 1),
                 "S-100",
                 1L,
+                null, null, null, null, null, null, null, null,
                 LocalDateTime.of(2026, 1, 1, 0, 0),
                 LocalDateTime.of(2026, 1, 1, 0, 0)
         );

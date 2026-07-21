@@ -54,12 +54,14 @@ public class StudentService {
     }
 
     private void ensureUnique(StudentRequest request, Long excludingId) {
-        studentRepository.findByEmail(request.email())
-                .filter(existing -> isDifferentRecord(existing, excludingId))
-                .ifPresent(existing -> {
-                    throw new DuplicateResourceException(
-                            "A student with email '" + request.email() + "' already exists");
-                });
+        if (request.email() != null) {
+            studentRepository.findByEmail(request.email())
+                    .filter(existing -> isDifferentRecord(existing, excludingId))
+                    .ifPresent(existing -> {
+                        throw new DuplicateResourceException(
+                                "A student with email '" + request.email() + "' already exists");
+                    });
+        }
 
         studentRepository.findByStudentNumber(request.studentNumber())
                 .filter(existing -> isDifferentRecord(existing, excludingId))
@@ -91,6 +93,14 @@ public class StudentService {
         student.setEnrollmentDate(request.enrollmentDate());
         student.setStudentNumber(request.studentNumber());
         student.setSchoolClass(schoolClass);
+        student.setSession(request.session());
+        student.setFatherName(request.fatherName());
+        student.setFatherMobile(request.fatherMobile());
+        student.setMotherName(request.motherName());
+        student.setMotherMobile(request.motherMobile());
+        student.setAddress(request.address());
+        student.setPrimaryParent(request.primaryParent());
+        student.setPrimaryParentMobile(request.primaryParentMobile());
     }
 
     private StudentResponse toResponse(Student student) {
@@ -103,6 +113,14 @@ public class StudentService {
                 student.getEnrollmentDate(),
                 student.getStudentNumber(),
                 student.getSchoolClass().getId(),
+                student.getSession(),
+                student.getFatherName(),
+                student.getFatherMobile(),
+                student.getMotherName(),
+                student.getMotherMobile(),
+                student.getAddress(),
+                student.getPrimaryParent(),
+                student.getPrimaryParentMobile(),
                 student.getCreatedAt(),
                 student.getUpdatedAt()
         );

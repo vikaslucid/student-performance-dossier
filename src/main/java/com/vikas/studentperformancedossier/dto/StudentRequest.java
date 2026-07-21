@@ -11,10 +11,18 @@ import java.time.LocalDate;
 public record StudentRequest(
         @NotBlank String firstName,
         @NotBlank String lastName,
-        @NotBlank @Email String email,
-        @NotNull @Past LocalDate dateOfBirth,
+        @Email String email,
+        @Past LocalDate dateOfBirth,
         @NotNull @PastOrPresent LocalDate enrollmentDate,
         @NotBlank String studentNumber,
-        @NotNull Long schoolClassId
+        @NotNull Long schoolClassId,
+        String session,
+        String fatherName,
+        String fatherMobile,
+        String motherName,
+        String motherMobile,
+        String address,
+        String primaryParent,
+        String primaryParentMobile
 ) {
 }
