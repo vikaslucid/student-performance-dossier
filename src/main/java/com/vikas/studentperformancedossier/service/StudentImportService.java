@@ -12,7 +12,8 @@ import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -63,7 +64,7 @@ public class StudentImportService {
         List<StudentImportRowError> errors = new ArrayList<>();
         DataFormatter dataFormatter = new DataFormatter();
 
-        try (XSSFWorkbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
@@ -81,7 +82,7 @@ public class StudentImportService {
                 }
             }
         } catch (IOException | RuntimeException ex) {
-            throw new InvalidRequestException("Could not read the uploaded file - is it a valid .xlsx file?");
+            throw new InvalidRequestException("Could not read the uploaded file - is it a valid .xlsx or .xls file?");
         }
 
         return new StudentImportResult(importedCount, errors);

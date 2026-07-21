@@ -7,6 +7,8 @@ import com.vikas.studentperformancedossier.entity.SchoolClass;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
 import com.vikas.studentperformancedossier.exception.InvalidRequestException;
 import com.vikas.studentperformancedossier.repository.SchoolClassRepository;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -83,6 +85,22 @@ class StudentImportServiceTest {
                 LocalDate.of(2020, 1, 1), "S-100", 1L,
                 "2024-25", "Father", "9990000001", "Mother", "9990000002",
                 "123 Main St", "Father", "9990000001"));
+    }
+
+    @Test
+    void importFromExcel_whenLegacyXlsFile_importsSuccessfully() throws IOException {
+        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
+
+        MultipartFile file = legacyXlsWorkbookWithRows(
+                new String[]{"2024-25", "10", "2020-01-01", "S-100", "Ada Lovelace",
+                        "Father", "9990000001", "Mother", "9990000002", "123 Main St", "Father", "9990000001"}
+        );
+
+        StudentImportResult result = studentImportService.importFromExcel(file);
+
+        assertThat(result.importedCount()).isEqualTo(1);
+        assertThat(result.errors()).isEmpty();
     }
 
     @Test
@@ -234,6 +252,31 @@ class StudentImportServiceTest {
             workbook.write(out);
             return new MockMultipartFile("file", "students.xlsx",
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out.toByteArray());
+        }
+    }
+
+    private MultipartFile legacyXlsWorkbookWithRows(String[]... rows) throws IOException {
+        try (HSSFWorkbook workbook = new HSSFWorkbook()) {
+            HSSFSheet sheet = workbook.createSheet("Students");
+            Row header = sheet.createRow(0);
+            String[] headers = {"Session", "Class", "Admission Date", "Admission No.", "Name",
+                    "Father's Name", "Father's Mobile", "Mother's Name", "Mother's Mobile", "Address",
+                    "Primary Parent", "Primary Parent Mobile"};
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            for (int r = 0; r < rows.length; r++) {
+                Row row = sheet.createRow(r + 1);
+                String[] values = rows[r];
+                for (int c = 0; c < values.length; c++) {
+                    row.createCell(c).setCellValue(values[c]);
+                }
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return new MockMultipartFile("file", "students.xls", "application/vnd.ms-excel", out.toByteArray());
         }
     }
 }
