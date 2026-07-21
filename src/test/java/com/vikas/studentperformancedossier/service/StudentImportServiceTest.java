@@ -200,6 +200,43 @@ class StudentImportServiceTest {
     }
 
     @Test
+    void importFromExcel_whenExtraAndSkippedColumns_matchesByHeaderNameNotPosition() throws IOException {
+        // Reproduces a real-world file layout: two unrelated leading columns, then Session/Class,
+        // then a blank/hidden column, then the rest - same shape as a real school register export.
+        when(schoolClassRepository.findByGrade("Eleventh (COMMERCE)")).thenReturn(List.of(schoolClass(1L)));
+        when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
+
+        String[] headers = {"S.No", "Roll No", "Session", "Class", "", "Admission Date", "Admission No.",
+                "Name", "Father's Name", "Father's Mobile", "Mother's Name", "Mother's Mobile", "Address"};
+        String[] row = {"1", "12", "2026-2027", "Eleventh (COMMERCE)", "", "2026-04-21", "0838",
+                "AGAM SINGH", "KAWAL SINGH", "9416250946", "RAMANDEEP", "9466507305", "GAJLANA, (166)"};
+
+        MultipartFile file = customWorkbookWithRows(headers, row);
+
+        StudentImportResult result = studentImportService.importFromExcel(file);
+
+        assertThat(result.importedCount()).isEqualTo(1);
+        assertThat(result.errors()).isEmpty();
+        verify(studentService).create(new StudentRequest(
+                "AGAM", "SINGH", null, null,
+                LocalDate.of(2026, 4, 21), "0838", 1L,
+                "2026-2027", "KAWAL SINGH", "9416250946", "RAMANDEEP", "9466507305",
+                "GAJLANA, (166)", null, null));
+    }
+
+    @Test
+    void importFromExcel_whenRequiredHeaderMissing_throwsInvalidRequestException() throws IOException {
+        String[] headers = {"Session", "Admission Date", "Admission No.", "Name"};
+        String[] row = {"2024-25", "2020-01-01", "S-100", "Ada Lovelace"};
+
+        MultipartFile file = customWorkbookWithRows(headers, row);
+
+        assertThatThrownBy(() -> studentImportService.importFromExcel(file))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("Class");
+    }
+
+    @Test
     void importFromExcel_whenBlankRow_skipsWithoutError() throws IOException {
         when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
@@ -236,6 +273,29 @@ class StudentImportServiceTest {
             String[] headers = {"Session", "Class", "Admission Date", "Admission No.", "Name",
                     "Father's Name", "Father's Mobile", "Mother's Name", "Mother's Mobile", "Address",
                     "Primary Parent", "Primary Parent Mobile"};
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            for (int r = 0; r < rows.length; r++) {
+                Row row = sheet.createRow(r + 1);
+                String[] values = rows[r];
+                for (int c = 0; c < values.length; c++) {
+                    row.createCell(c).setCellValue(values[c]);
+                }
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return new MockMultipartFile("file", "students.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out.toByteArray());
+        }
+    }
+
+    private MultipartFile customWorkbookWithRows(String[] headers, String[]... rows) throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet("Students");
+            Row header = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }

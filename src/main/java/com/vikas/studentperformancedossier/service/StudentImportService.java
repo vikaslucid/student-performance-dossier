@@ -21,31 +21,42 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-// Expected columns (header row required, values start on row 2):
+// Columns are matched by header text (case/punctuation/whitespace-insensitive), not fixed
+// position - extra columns before/after/between the ones below, or a different column order,
+// don't matter as long as the header row contains these names somewhere:
 // Session | Class | Admission Date (yyyy-MM-dd) | Admission No. | Name | Father's Name |
 // Father's Mobile | Mother's Name | Mother's Mobile | Address | Primary Parent | Primary Parent Mobile
 //
 // Class is matched against an existing School Class by grade alone (no section column in the
 // source data) - if a grade has more than one section, the row is reported as ambiguous rather
-// than guessing. Session and the parent/guardian/address columns are optional; Class, Admission
-// Date, Admission No. and Name are required to create a valid student.
+// than guessing. Session and the parent/guardian/address columns are optional (and can be missing
+// from the file entirely); Class, Admission Date, Admission No. and Name are required - if one of
+// those headers isn't found at all, the whole import is rejected up front.
 @Service
 public class StudentImportService {
 
-    private static final int COL_SESSION = 0;
-    private static final int COL_CLASS = 1;
-    private static final int COL_ADMISSION_DATE = 2;
-    private static final int COL_ADMISSION_NUMBER = 3;
-    private static final int COL_NAME = 4;
-    private static final int COL_FATHER_NAME = 5;
-    private static final int COL_FATHER_MOBILE = 6;
-    private static final int COL_MOTHER_NAME = 7;
-    private static final int COL_MOTHER_MOBILE = 8;
-    private static final int COL_ADDRESS = 9;
-    private static final int COL_PRIMARY_PARENT = 10;
-    private static final int COL_PRIMARY_PARENT_MOBILE = 11;
+    private static final String COL_SESSION = "session";
+    private static final String COL_CLASS = "class";
+    private static final String COL_ADMISSION_DATE = "admission date";
+    private static final String COL_ADMISSION_NUMBER = "admission no";
+    private static final String COL_NAME = "name";
+    private static final String COL_FATHER_NAME = "fathers name";
+    private static final String COL_FATHER_MOBILE = "fathers mobile";
+    private static final String COL_MOTHER_NAME = "mothers name";
+    private static final String COL_MOTHER_MOBILE = "mothers mobile";
+    private static final String COL_ADDRESS = "address";
+    private static final String COL_PRIMARY_PARENT = "primary parent";
+    private static final String COL_PRIMARY_PARENT_MOBILE = "primary parent mobile";
+
+    private static final Map<String, String> REQUIRED_COLUMN_DISPLAY_NAMES = Map.of(
+            COL_CLASS, "Class",
+            COL_ADMISSION_DATE, "Admission Date",
+            COL_ADMISSION_NUMBER, "Admission No.",
+            COL_NAME, "Name");
 
     private final StudentService studentService;
     private final SchoolClassRepository schoolClassRepository;
@@ -66,15 +77,22 @@ public class StudentImportService {
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
+            Row headerRow = sheet.getRow(0);
+            if (headerRow == null) {
+                throw new InvalidRequestException("The file has no header row");
+            }
+            Map<String, Integer> columns = mapHeaderColumns(headerRow, dataFormatter);
+            checkRequiredColumnsPresent(columns);
+
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
-                if (row == null || isBlankRow(row, dataFormatter)) {
+                if (row == null || isBlankRow(row, columns, dataFormatter)) {
                     continue;
                 }
 
                 int excelRowNumber = rowIndex + 1;
                 try {
-                    StudentRequest request = parseRow(row, dataFormatter);
+                    StudentRequest request = parseRow(row, columns, dataFormatter);
                     studentService.create(request);
                     importedCount++;
                 } catch (RuntimeException ex) {
@@ -82,25 +100,59 @@ public class StudentImportService {
                 }
             }
         } catch (IOException | RuntimeException ex) {
+            if (ex instanceof InvalidRequestException) {
+                throw (InvalidRequestException) ex;
+            }
             throw new InvalidRequestException("Could not read the uploaded file - is it a valid .xlsx or .xls file?");
         }
 
         return new StudentImportResult(importedCount, errors);
     }
 
-    private StudentRequest parseRow(Row row, DataFormatter dataFormatter) {
-        String session = optionalText(row, COL_SESSION, dataFormatter);
-        String grade = requireText(row, COL_CLASS, "Class", dataFormatter);
-        LocalDate enrollmentDate = requireDate(row, COL_ADMISSION_DATE, "Admission Date");
-        String studentNumber = requireText(row, COL_ADMISSION_NUMBER, "Admission No.", dataFormatter);
-        String fullName = requireText(row, COL_NAME, "Name", dataFormatter);
-        String fatherName = optionalText(row, COL_FATHER_NAME, dataFormatter);
-        String fatherMobile = optionalText(row, COL_FATHER_MOBILE, dataFormatter);
-        String motherName = optionalText(row, COL_MOTHER_NAME, dataFormatter);
-        String motherMobile = optionalText(row, COL_MOTHER_MOBILE, dataFormatter);
-        String address = optionalText(row, COL_ADDRESS, dataFormatter);
-        String primaryParent = optionalText(row, COL_PRIMARY_PARENT, dataFormatter);
-        String primaryParentMobile = optionalText(row, COL_PRIMARY_PARENT_MOBILE, dataFormatter);
+    private Map<String, Integer> mapHeaderColumns(Row headerRow, DataFormatter dataFormatter) {
+        Map<String, Integer> columns = new HashMap<>();
+        for (Cell cell : headerRow) {
+            String normalized = normalizeHeader(dataFormatter.formatCellValue(cell));
+            if (!normalized.isEmpty()) {
+                columns.putIfAbsent(normalized, cell.getColumnIndex());
+            }
+        }
+        return columns;
+    }
+
+    private String normalizeHeader(String header) {
+        return header.toLowerCase()
+                .replace("'", "")
+                .replace("’", "")
+                .replace(".", "")
+                .trim()
+                .replaceAll("\\s+", " ");
+    }
+
+    private void checkRequiredColumnsPresent(Map<String, Integer> columns) {
+        List<String> missing = REQUIRED_COLUMN_DISPLAY_NAMES.entrySet().stream()
+                .filter(entry -> !columns.containsKey(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .toList();
+        if (!missing.isEmpty()) {
+            throw new InvalidRequestException(
+                    "The header row is missing required column(s): " + String.join(", ", missing));
+        }
+    }
+
+    private StudentRequest parseRow(Row row, Map<String, Integer> columns, DataFormatter dataFormatter) {
+        String session = optionalText(row, columns, COL_SESSION, dataFormatter);
+        String grade = requireText(row, columns, COL_CLASS, "Class", dataFormatter);
+        LocalDate enrollmentDate = requireDate(row, columns, COL_ADMISSION_DATE, "Admission Date");
+        String studentNumber = requireText(row, columns, COL_ADMISSION_NUMBER, "Admission No.", dataFormatter);
+        String fullName = requireText(row, columns, COL_NAME, "Name", dataFormatter);
+        String fatherName = optionalText(row, columns, COL_FATHER_NAME, dataFormatter);
+        String fatherMobile = optionalText(row, columns, COL_FATHER_MOBILE, dataFormatter);
+        String motherName = optionalText(row, columns, COL_MOTHER_NAME, dataFormatter);
+        String motherMobile = optionalText(row, columns, COL_MOTHER_MOBILE, dataFormatter);
+        String address = optionalText(row, columns, COL_ADDRESS, dataFormatter);
+        String primaryParent = optionalText(row, columns, COL_PRIMARY_PARENT, dataFormatter);
+        String primaryParentMobile = optionalText(row, columns, COL_PRIMARY_PARENT_MOBILE, dataFormatter);
 
         String[] nameParts = splitName(fullName);
         Long schoolClassId = findSchoolClassId(grade);
@@ -143,22 +195,28 @@ public class StudentImportService {
         return matches.get(0).getId();
     }
 
-    private String requireText(Row row, int colIndex, String columnName, DataFormatter dataFormatter) {
-        String value = optionalText(row, colIndex, dataFormatter);
+    private String requireText(Row row, Map<String, Integer> columns, String columnKey, String columnName,
+                                DataFormatter dataFormatter) {
+        String value = optionalText(row, columns, columnKey, dataFormatter);
         if (value == null) {
             throw new InvalidRequestException(columnName + " is required");
         }
         return value;
     }
 
-    private String optionalText(Row row, int colIndex, DataFormatter dataFormatter) {
+    private String optionalText(Row row, Map<String, Integer> columns, String columnKey, DataFormatter dataFormatter) {
+        Integer colIndex = columns.get(columnKey);
+        if (colIndex == null) {
+            return null;
+        }
         Cell cell = row.getCell(colIndex);
         String value = cell == null ? "" : dataFormatter.formatCellValue(cell).trim();
         return value.isEmpty() ? null : value;
     }
 
-    private LocalDate requireDate(Row row, int colIndex, String columnName) {
-        Cell cell = row.getCell(colIndex);
+    private LocalDate requireDate(Row row, Map<String, Integer> columns, String columnKey, String columnName) {
+        Integer colIndex = columns.get(columnKey);
+        Cell cell = colIndex == null ? null : row.getCell(colIndex);
         if (cell == null || cell.getCellType() == CellType.BLANK) {
             throw new InvalidRequestException(columnName + " is required");
         }
@@ -176,9 +234,9 @@ public class StudentImportService {
         }
     }
 
-    private boolean isBlankRow(Row row, DataFormatter dataFormatter) {
-        for (int col = COL_SESSION; col <= COL_PRIMARY_PARENT_MOBILE; col++) {
-            Cell cell = row.getCell(col);
+    private boolean isBlankRow(Row row, Map<String, Integer> columns, DataFormatter dataFormatter) {
+        for (Integer colIndex : columns.values()) {
+            Cell cell = row.getCell(colIndex);
             if (cell != null && !dataFormatter.formatCellValue(cell).trim().isEmpty()) {
                 return false;
             }
