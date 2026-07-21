@@ -2,10 +2,13 @@ package com.vikas.studentperformancedossier.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vikas.studentperformancedossier.config.SecurityConfig;
+import com.vikas.studentperformancedossier.dto.StudentImportResult;
+import com.vikas.studentperformancedossier.dto.StudentImportRowError;
 import com.vikas.studentperformancedossier.dto.StudentRequest;
 import com.vikas.studentperformancedossier.dto.StudentResponse;
 import com.vikas.studentperformancedossier.exception.DuplicateResourceException;
 import com.vikas.studentperformancedossier.repository.UserRepository;
+import com.vikas.studentperformancedossier.service.StudentImportService;
 import com.vikas.studentperformancedossier.service.StudentService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -13,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -28,6 +32,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -46,6 +51,9 @@ class StudentControllerTest {
 
     @MockitoBean
     private StudentService studentService;
+
+    @MockitoBean
+    private StudentImportService studentImportService;
 
     @MockitoBean
     private UserRepository userRepository;
@@ -449,6 +457,30 @@ class StudentControllerTest {
     void getAllStudents_whenUnauthenticated_returns401() throws Exception {
         mockMvc.perform(get("/api/students"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void importStudents_whenValid_returnsSummary() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "students.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "content".getBytes());
+        when(studentImportService.importFromExcel(any()))
+                .thenReturn(new StudentImportResult(2, List.of(new StudentImportRowError(4, "Row error"))));
+
+        mockMvc.perform(multipart("/api/students/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.importedCount").value(2))
+                .andExpect(jsonPath("$.errors[0].rowNumber").value(4))
+                .andExpect(jsonPath("$.errors[0].message").value("Row error"));
+    }
+
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void importStudents_whenTeacherRole_returns403() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "students.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "content".getBytes());
+
+        mockMvc.perform(multipart("/api/students/import").file(file))
+                .andExpect(status().isForbidden());
     }
 
     private StudentRequest sampleRequest() {
