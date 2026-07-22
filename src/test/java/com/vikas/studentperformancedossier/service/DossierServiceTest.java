@@ -3,13 +3,16 @@ package com.vikas.studentperformancedossier.service;
 import com.vikas.studentperformancedossier.dto.DossierResponse;
 import com.vikas.studentperformancedossier.dto.ExamSummaryResponse;
 import com.vikas.studentperformancedossier.dto.SubjectAverageResponse;
+import com.vikas.studentperformancedossier.entity.Behaviour;
 import com.vikas.studentperformancedossier.entity.Exam;
 import com.vikas.studentperformancedossier.entity.Mark;
 import com.vikas.studentperformancedossier.entity.Role;
+import com.vikas.studentperformancedossier.entity.School;
 import com.vikas.studentperformancedossier.entity.SchoolClass;
 import com.vikas.studentperformancedossier.entity.Student;
 import com.vikas.studentperformancedossier.entity.Subject;
 import com.vikas.studentperformancedossier.entity.User;
+import com.vikas.studentperformancedossier.repository.BehaviourRepository;
 import com.vikas.studentperformancedossier.repository.MarkRepository;
 import com.vikas.studentperformancedossier.repository.StudentRepository;
 import com.vikas.studentperformancedossier.security.CurrentUserProvider;
@@ -37,6 +40,9 @@ class DossierServiceTest {
 
     @Mock
     private StudentRepository studentRepository;
+
+    @Mock
+    private BehaviourRepository behaviourRepository;
 
     @Mock
     private CurrentUserProvider currentUserProvider;
@@ -70,6 +76,10 @@ class DossierServiceTest {
 
         assertThat(response.studentId()).isEqualTo(1L);
         assertThat(response.studentName()).isEqualTo("Ada Lovelace");
+        assertThat(response.studentNumber()).isEqualTo("S-100");
+        assertThat(response.schoolName()).isEqualTo("Central High");
+        assertThat(response.grade()).isEqualTo("Grade 10");
+        assertThat(response.section()).isEqualTo("A");
     }
 
     @Test
@@ -123,27 +133,42 @@ class DossierServiceTest {
         DossierResponse response = dossierService.getDossier(1L);
 
         assertThat(response.overallAveragePercentage()).isNull();
+        assertThat(response.overallGrade()).isNull();
         assertThat(response.subjectAverages()).isEmpty();
         assertThat(response.examSummaries()).isEmpty();
+        assertThat(response.behaviour()).isNull();
     }
 
     @Test
-    void getDossier_computesOverallAverageAsMeanOfPercentagesNotRawScores() {
+    void getDossier_whenBehaviourRecordExists_includesItInResponse() {
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(student));
+        when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.ADMIN, null));
+        when(markRepository.findByStudent_Id(1L)).thenReturn(List.of());
+        when(behaviourRepository.findByStudent_Id(1L)).thenReturn(Optional.of(existingBehaviour()));
+
+        DossierResponse response = dossierService.getDossier(1L);
+
+        assertThat(response.behaviour()).isNotNull();
+        assertThat(response.behaviour().overallBehaviour()).isEqualTo(4);
+    }
+
+    @Test
+    void getDossier_computesOverallAverageAsMeanOfPercentages() {
         Subject math = existingSubject(1L, "Mathematics");
         Exam exam1 = existingExam(1L, "Midterm", math, LocalDate.of(2026, 2, 1));
         Exam exam2 = existingExam(2L, "Final", math, LocalDate.of(2026, 5, 1));
-        // 40/50 = 80%, 45/50 = 90% -> average 85%, NOT (40+45)/(50+50) = 85% coincidentally same here,
-        // so use different max marks to make the distinction unambiguous.
-        Mark mark1 = existingMark(1L, 40, 50, exam1, null);
-        Mark mark2 = existingMark(2L, 9, 10, exam2, null);
-        // percentages: 80%, 90% -> mean 85%. Raw sum/sum would be 49/60 = 81.67%, which must NOT be the result.
+        // Every mark's total is out of a fixed 25 (5 components x 0-5), so percentage is always
+        // total * 4 - total=20 -> 80%, total=16 -> 64%, mean = 72%.
+        Mark mark1 = existingMark(1L, 20, exam1);
+        Mark mark2 = existingMark(2L, 16, exam2);
         when(studentRepository.findById(1L)).thenReturn(Optional.of(student));
         when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.ADMIN, null));
         when(markRepository.findByStudent_Id(1L)).thenReturn(List.of(mark1, mark2));
 
         DossierResponse response = dossierService.getDossier(1L);
 
-        assertThat(response.overallAveragePercentage()).isEqualTo(85.0);
+        assertThat(response.overallAveragePercentage()).isEqualTo(72.0);
+        assertThat(response.overallGrade()).isEqualTo("B");
     }
 
     @Test
@@ -154,9 +179,9 @@ class DossierServiceTest {
         Exam mathExam2 = existingExam(2L, "Final", math, LocalDate.of(2026, 5, 1));
         Exam scienceExam = existingExam(3L, "Midterm", science, LocalDate.of(2026, 2, 1));
 
-        Mark mathMark1 = existingMark(1L, 80, 100, mathExam1, null);
-        Mark mathMark2 = existingMark(2L, 60, 100, mathExam2, null);
-        Mark scienceMark = existingMark(3L, 50, 100, scienceExam, null);
+        Mark mathMark1 = existingMark(1L, 20, mathExam1);
+        Mark mathMark2 = existingMark(2L, 15, mathExam2);
+        Mark scienceMark = existingMark(3L, 13, scienceExam);
 
         when(studentRepository.findById(1L)).thenReturn(Optional.of(student));
         when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.ADMIN, null));
@@ -171,7 +196,7 @@ class DossierServiceTest {
         SubjectAverageResponse scienceAverage = subjectAverages.stream()
                 .filter(s -> s.subjectId().equals(2L)).findFirst().orElseThrow();
         assertThat(mathAverage.averagePercentage()).isEqualTo(70.0);
-        assertThat(scienceAverage.averagePercentage()).isEqualTo(50.0);
+        assertThat(scienceAverage.averagePercentage()).isEqualTo(52.0);
     }
 
     @Test
@@ -179,8 +204,8 @@ class DossierServiceTest {
         Subject math = existingSubject(1L, "Mathematics");
         Exam passingExam = existingExam(1L, "Midterm", math, LocalDate.of(2026, 2, 1));
         Exam failingExam = existingExam(2L, "Final", math, LocalDate.of(2026, 5, 1));
-        Mark passingMark = existingMark(1L, 40, 100, passingExam, "C");
-        Mark failingMark = existingMark(2L, 39, 100, failingExam, "F");
+        Mark passingMark = existingMark(1L, 13, passingExam); // 52% -> grade C
+        Mark failingMark = existingMark(2L, 9, failingExam); // 36% -> grade D
 
         when(studentRepository.findById(1L)).thenReturn(Optional.of(student));
         when(currentUserProvider.getCurrentUser()).thenReturn(existingUser(Role.ADMIN, null));
@@ -196,7 +221,7 @@ class DossierServiceTest {
         assertThat(passingSummary.passed()).isTrue();
         assertThat(passingSummary.grade()).isEqualTo("C");
         assertThat(failingSummary.passed()).isFalse();
-        assertThat(failingSummary.grade()).isEqualTo("F");
+        assertThat(failingSummary.grade()).isEqualTo("D");
     }
 
     private User existingUser(Role role, Student linkedStudent) {
@@ -217,8 +242,23 @@ class DossierServiceTest {
         s.setEmail("ada" + id + "@example.com");
         s.setDateOfBirth(LocalDate.of(1990, 1, 1));
         s.setEnrollmentDate(LocalDate.of(2020, 1, 1));
-        s.setStudentNumber("S-" + id);
+        s.setStudentNumber("S-100");
+        s.setSchoolClass(existingSchoolClass());
         return s;
+    }
+
+    private SchoolClass existingSchoolClass() {
+        School school = new School();
+        school.setId(1L);
+        school.setName("Central High");
+        school.setAddress("123 Main St");
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setId(1L);
+        schoolClass.setGrade("Grade 10");
+        schoolClass.setSection("A");
+        schoolClass.setSchool(school);
+        return schoolClass;
     }
 
     private Subject existingSubject(Long id, String name) {
@@ -239,12 +279,41 @@ class DossierServiceTest {
         return exam;
     }
 
-    private Mark existingMark(Long id, int obtained, int maximum, Exam exam, String grade) {
+    private Behaviour existingBehaviour() {
+        Behaviour behaviour = new Behaviour();
+        behaviour.setId(1L);
+        behaviour.setAttention(4);
+        behaviour.setParticipation(4);
+        behaviour.setDiscipline(4);
+        behaviour.setHomeworkResponsibility(4);
+        behaviour.setCommunicationSkills(4);
+        behaviour.setConfidence(4);
+        behaviour.setTeamwork(4);
+        behaviour.setCuriosity(4);
+        behaviour.setLeadership(4);
+        behaviour.setCriticalThinking(4);
+        behaviour.setOverallBehaviour(4);
+        behaviour.setStudent(student);
+        return behaviour;
+    }
+
+    // Distributes the given total (0-25) across the 5 components (each capped at 0-5) - the exact
+    // split doesn't matter for these tests, only the resulting total/percentage/grade.
+    private Mark existingMark(Long id, int total, Exam exam) {
         Mark mark = new Mark();
         mark.setId(id);
-        mark.setObtainedMarks(obtained);
-        mark.setMaximumMarks(maximum);
-        mark.setGrade(grade);
+        int remaining = total;
+        int[] components = new int[5];
+        for (int i = 0; i < 5; i++) {
+            int share = Math.min(5, remaining);
+            components[i] = share;
+            remaining -= share;
+        }
+        mark.setConcept(components[0]);
+        mark.setApplication(components[1]);
+        mark.setAccuracy(components[2]);
+        mark.setHomework(components[3]);
+        mark.setTest(components[4]);
         mark.setStudent(student);
         mark.setExam(exam);
         return mark;

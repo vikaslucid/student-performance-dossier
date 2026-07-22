@@ -53,7 +53,7 @@ class DossierControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.studentId").value(1))
                 .andExpect(jsonPath("$.studentName").value("Ada Lovelace"))
-                .andExpect(jsonPath("$.overallAveragePercentage").value(85.0))
+                .andExpect(jsonPath("$.overallAveragePercentage").value(80.0))
                 .andExpect(jsonPath("$.subjectAverages[0].subjectName").value("Mathematics"))
                 .andExpect(jsonPath("$.examSummaries[0].passed").value(true));
     }
@@ -100,12 +100,25 @@ class DossierControllerTest {
     void getDossierPdf_returnsValidPdfResponse() throws Exception {
         byte[] fakePdfBytes = "%PDF-1.4 fake content".getBytes(StandardCharsets.US_ASCII);
         when(dossierService.getDossier(1L)).thenReturn(sampleDossier());
-        when(dossierPdfGenerator.generate(sampleDossier())).thenReturn(fakePdfBytes);
+        when(dossierPdfGenerator.generate(sampleDossier(), null, null)).thenReturn(fakePdfBytes);
 
         mockMvc.perform(get("/api/dossier/{studentId}/pdf", 1L))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"dossier-1.pdf\""))
+                .andExpect(content().bytes(fakePdfBytes));
+    }
+
+    @Test
+    void getDossierPdf_whenPtmDateAndClassTeacherProvided_passesThemToGenerator() throws Exception {
+        byte[] fakePdfBytes = "%PDF-1.4 fake content".getBytes(StandardCharsets.US_ASCII);
+        when(dossierService.getDossier(1L)).thenReturn(sampleDossier());
+        when(dossierPdfGenerator.generate(sampleDossier(), "2026-03-15", "Mrs. Sharma")).thenReturn(fakePdfBytes);
+
+        mockMvc.perform(get("/api/dossier/{studentId}/pdf", 1L)
+                        .param("ptmDate", "2026-03-15")
+                        .param("classTeacher", "Mrs. Sharma"))
+                .andExpect(status().isOk())
                 .andExpect(content().bytes(fakePdfBytes));
     }
 
@@ -121,8 +134,11 @@ class DossierControllerTest {
     private DossierResponse sampleDossier() {
         SubjectAverageResponse subjectAverage = new SubjectAverageResponse(1L, "Mathematics", 85.0);
         ExamSummaryResponse examSummary = new ExamSummaryResponse(
-                1L, "Midterm", LocalDate.of(2026, 3, 1), 1L, "Mathematics", 85, 100, 85.0, true, "A");
+                1L, "Midterm", LocalDate.of(2026, 3, 1), 1L, "Mathematics",
+                4, 4, 4, 4, 4, 20, 25, 80.0, true, "A2");
 
-        return new DossierResponse(1L, "Ada Lovelace", 85.0, List.of(subjectAverage), List.of(examSummary));
+        return new DossierResponse(
+                1L, "Ada Lovelace", "S-100", "Central High", "Grade 10", null, "A", "2025-2026",
+                80.0, "A", List.of(subjectAverage), List.of(examSummary), null);
     }
 }

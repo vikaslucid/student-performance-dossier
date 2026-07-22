@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -29,9 +30,12 @@ public class DossierController {
     }
 
     @GetMapping("/{studentId}/pdf")
-    public ResponseEntity<byte[]> getDossierPdf(@PathVariable Long studentId) {
+    public ResponseEntity<byte[]> getDossierPdf(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) String ptmDate,
+            @RequestParam(required = false) String classTeacher) {
         DossierResponse dossier = dossierService.getDossier(studentId);
-        byte[] pdfBytes = dossierPdfGenerator.generate(dossier);
+        byte[] pdfBytes = dossierPdfGenerator.generate(dossier, ptmDate, classTeacher);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
