@@ -7,18 +7,28 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+// Each component is scored 0-5 (Concept/Application/Accuracy/Homework/Test), matching the
+// rubric this project's real-world dossier system already uses. Total (0-25), percentage and
+// letter grade are derived from the components rather than stored, so they can never drift out
+// of sync with them.
 @Entity
 @Table(name = "marks")
 public class Mark extends BaseEntity {
 
     @Column(nullable = false)
-    private Integer obtainedMarks;
+    private Integer concept;
 
     @Column(nullable = false)
-    private Integer maximumMarks;
+    private Integer application;
 
-    @Column
-    private String grade;
+    @Column(nullable = false)
+    private Integer accuracy;
+
+    @Column(nullable = false)
+    private Integer homework;
+
+    @Column(nullable = false)
+    private Integer test;
 
     @Column
     private String remarks;
@@ -31,28 +41,44 @@ public class Mark extends BaseEntity {
     @JoinColumn(name = "exam_id", nullable = false)
     private Exam exam;
 
-    public Integer getObtainedMarks() {
-        return obtainedMarks;
+    public Integer getConcept() {
+        return concept;
     }
 
-    public void setObtainedMarks(Integer obtainedMarks) {
-        this.obtainedMarks = obtainedMarks;
+    public void setConcept(Integer concept) {
+        this.concept = concept;
     }
 
-    public Integer getMaximumMarks() {
-        return maximumMarks;
+    public Integer getApplication() {
+        return application;
     }
 
-    public void setMaximumMarks(Integer maximumMarks) {
-        this.maximumMarks = maximumMarks;
+    public void setApplication(Integer application) {
+        this.application = application;
     }
 
-    public String getGrade() {
-        return grade;
+    public Integer getAccuracy() {
+        return accuracy;
     }
 
-    public void setGrade(String grade) {
-        this.grade = grade;
+    public void setAccuracy(Integer accuracy) {
+        this.accuracy = accuracy;
+    }
+
+    public Integer getHomework() {
+        return homework;
+    }
+
+    public void setHomework(Integer homework) {
+        this.homework = homework;
+    }
+
+    public Integer getTest() {
+        return test;
+    }
+
+    public void setTest(Integer test) {
+        this.test = test;
     }
 
     public String getRemarks() {
@@ -77,5 +103,33 @@ public class Mark extends BaseEntity {
 
     public void setExam(Exam exam) {
         this.exam = exam;
+    }
+
+    public int getTotal() {
+        return concept + application + accuracy + homework + test;
+    }
+
+    public double getPercentage() {
+        return getTotal() * 100.0 / 25.0;
+    }
+
+    public String getGrade() {
+        double percentage = getPercentage();
+        if (percentage >= 90) {
+            return "A1";
+        }
+        if (percentage >= 80) {
+            return "A2";
+        }
+        if (percentage >= 70) {
+            return "B1";
+        }
+        if (percentage >= 60) {
+            return "B2";
+        }
+        if (percentage >= 50) {
+            return "C";
+        }
+        return "D";
     }
 }

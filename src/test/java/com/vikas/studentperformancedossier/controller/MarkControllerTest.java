@@ -54,7 +54,7 @@ class MarkControllerTest {
         mockMvc.perform(get("/api/marks"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].obtainedMarks").value(85));
+                .andExpect(jsonPath("$[0].total").value(20));
     }
 
     @Test
@@ -74,7 +74,7 @@ class MarkControllerTest {
         mockMvc.perform(get("/api/marks/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.grade").value("A"));
+                .andExpect(jsonPath("$.grade").value("A2"));
     }
 
     @Test
@@ -97,46 +97,46 @@ class MarkControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.obtainedMarks").value(85));
+                .andExpect(jsonPath("$.total").value(20));
     }
 
     @Test
-    void createMark_whenObtainedMarksMissing_returns400() throws Exception {
-        MarkRequest invalidRequest = new MarkRequest(null, 100, "A", "Well done", 1L, 2L);
+    void createMark_whenConceptMissing_returns400() throws Exception {
+        MarkRequest invalidRequest = new MarkRequest(null, 4, 4, 4, 4, "Well done", 1L, 2L);
 
         mockMvc.perform(post("/api/marks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Validation failed for one or more fields"))
-                .andExpect(jsonPath("$.errors.obtainedMarks").exists());
+                .andExpect(jsonPath("$.errors.concept").exists());
     }
 
     @Test
-    void createMark_whenObtainedMarksNegative_returns400() throws Exception {
-        MarkRequest invalidRequest = new MarkRequest(-5, 100, "A", "Well done", 1L, 2L);
+    void createMark_whenConceptBelowRange_returns400() throws Exception {
+        MarkRequest invalidRequest = new MarkRequest(-1, 4, 4, 4, 4, "Well done", 1L, 2L);
 
         mockMvc.perform(post("/api/marks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.obtainedMarks").exists());
+                .andExpect(jsonPath("$.errors.concept").exists());
     }
 
     @Test
-    void createMark_whenMaximumMarksNotPositive_returns400() throws Exception {
-        MarkRequest invalidRequest = new MarkRequest(85, 0, "A", "Well done", 1L, 2L);
+    void createMark_whenTestAboveRange_returns400() throws Exception {
+        MarkRequest invalidRequest = new MarkRequest(4, 4, 4, 4, 6, "Well done", 1L, 2L);
 
         mockMvc.perform(post("/api/marks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.maximumMarks").exists());
+                .andExpect(jsonPath("$.errors.test").exists());
     }
 
     @Test
     void createMark_whenStudentIdMissing_returns400() throws Exception {
-        MarkRequest invalidRequest = new MarkRequest(85, 100, "A", "Well done", null, 2L);
+        MarkRequest invalidRequest = new MarkRequest(4, 4, 4, 4, 4, "Well done", null, 2L);
 
         mockMvc.perform(post("/api/marks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -147,7 +147,7 @@ class MarkControllerTest {
 
     @Test
     void createMark_whenExamIdMissing_returns400() throws Exception {
-        MarkRequest invalidRequest = new MarkRequest(85, 100, "A", "Well done", 1L, null);
+        MarkRequest invalidRequest = new MarkRequest(4, 4, 4, 4, 4, "Well done", 1L, null);
 
         mockMvc.perform(post("/api/marks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -234,14 +234,17 @@ class MarkControllerTest {
 
     @Test
     void updateMark_whenInvalid_returns400WithFieldErrors() throws Exception {
-        MarkRequest invalidRequest = new MarkRequest(null, null, null, null, null, null);
+        MarkRequest invalidRequest = new MarkRequest(null, null, null, null, null, null, null, null);
 
         mockMvc.perform(put("/api/marks/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.obtainedMarks").exists())
-                .andExpect(jsonPath("$.errors.maximumMarks").exists())
+                .andExpect(jsonPath("$.errors.concept").exists())
+                .andExpect(jsonPath("$.errors.application").exists())
+                .andExpect(jsonPath("$.errors.accuracy").exists())
+                .andExpect(jsonPath("$.errors.homework").exists())
+                .andExpect(jsonPath("$.errors.test").exists())
                 .andExpect(jsonPath("$.errors.studentId").exists())
                 .andExpect(jsonPath("$.errors.examId").exists());
     }
@@ -312,15 +315,20 @@ class MarkControllerTest {
     }
 
     private MarkRequest sampleRequest() {
-        return new MarkRequest(85, 100, "A", "Well done", 1L, 2L);
+        return new MarkRequest(4, 4, 4, 4, 4, "Well done", 1L, 2L);
     }
 
     private MarkResponse sampleResponse(Long id) {
         return new MarkResponse(
                 id,
-                85,
-                100,
-                "A",
+                4,
+                4,
+                4,
+                4,
+                4,
+                20,
+                80.0,
+                "A2",
                 "Well done",
                 1L,
                 2L,

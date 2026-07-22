@@ -121,9 +121,11 @@ class MarkRepositoryTest {
 
     private Mark persistedMark(Student student, Exam exam) {
         Mark mark = new Mark();
-        mark.setObtainedMarks(85);
-        mark.setMaximumMarks(100);
-        mark.setGrade("A");
+        mark.setConcept(4);
+        mark.setApplication(4);
+        mark.setAccuracy(4);
+        mark.setHomework(4);
+        mark.setTest(4);
         mark.setRemarks("Well done");
         mark.setStudent(student);
         mark.setExam(exam);

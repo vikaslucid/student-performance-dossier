@@ -118,9 +118,11 @@ public class MarkService {
     }
 
     private void applyRequest(Mark mark, MarkRequest request, Student student, Exam exam) {
-        mark.setObtainedMarks(request.obtainedMarks());
-        mark.setMaximumMarks(request.maximumMarks());
-        mark.setGrade(request.grade());
+        mark.setConcept(request.concept());
+        mark.setApplication(request.application());
+        mark.setAccuracy(request.accuracy());
+        mark.setHomework(request.homework());
+        mark.setTest(request.test());
         mark.setRemarks(request.remarks());
         mark.setStudent(student);
         mark.setExam(exam);
@@ -129,8 +131,13 @@ public class MarkService {
     private MarkResponse toResponse(Mark mark) {
         return new MarkResponse(
                 mark.getId(),
-                mark.getObtainedMarks(),
-                mark.getMaximumMarks(),
+                mark.getConcept(),
+                mark.getApplication(),
+                mark.getAccuracy(),
+                mark.getHomework(),
+                mark.getTest(),
+                mark.getTotal(),
+                mark.getPercentage(),
                 mark.getGrade(),
                 mark.getRemarks(),
                 mark.getStudent().getId(),

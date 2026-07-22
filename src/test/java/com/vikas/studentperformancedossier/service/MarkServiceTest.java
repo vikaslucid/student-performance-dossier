@@ -53,7 +53,7 @@ class MarkServiceTest {
 
     @BeforeEach
     void setUp() {
-        request = new MarkRequest(85, 100, "A", "Well done", 1L, 2L);
+        request = new MarkRequest(4, 4, 4, 4, 4, "Well done", 1L, 2L);
     }
 
     @Test
@@ -104,7 +104,9 @@ class MarkServiceTest {
         MarkResponse response = markService.create(request);
 
         assertThat(response.id()).isEqualTo(1L);
-        assertThat(response.obtainedMarks()).isEqualTo(85);
+        assertThat(response.total()).isEqualTo(20);
+        assertThat(response.percentage()).isEqualTo(80.0);
+        assertThat(response.grade()).isEqualTo("A2");
         assertThat(response.studentId()).isEqualTo(1L);
         assertThat(response.examId()).isEqualTo(2L);
     }
@@ -278,9 +280,11 @@ class MarkServiceTest {
     private Mark existingMark(Long id) {
         Mark mark = new Mark();
         mark.setId(id);
-        mark.setObtainedMarks(85);
-        mark.setMaximumMarks(100);
-        mark.setGrade("A");
+        mark.setConcept(4);
+        mark.setApplication(4);
+        mark.setAccuracy(4);
+        mark.setHomework(4);
+        mark.setTest(4);
         mark.setRemarks("Well done");
         mark.setStudent(existingStudent(1L));
         mark.setExam(existingExam(2L));
