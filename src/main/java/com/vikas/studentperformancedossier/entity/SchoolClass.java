@@ -14,6 +14,8 @@ public class SchoolClass extends BaseEntity {
     @Column(nullable = false)
     private String grade;
 
+    private String stream;
+
     @Column(nullable = false)
     private String section;
 
@@ -27,6 +29,14 @@ public class SchoolClass extends BaseEntity {
 
     public void setGrade(String grade) {
         this.grade = grade;
+    }
+
+    public String getStream() {
+        return stream;
+    }
+
+    public void setStream(String stream) {
+        this.stream = stream;
     }
 
     public String getSection() {

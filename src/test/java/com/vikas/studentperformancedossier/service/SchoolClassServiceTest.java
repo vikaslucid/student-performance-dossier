@@ -40,13 +40,13 @@ class SchoolClassServiceTest {
 
     @BeforeEach
     void setUp() {
-        request = new SchoolClassRequest("Grade 10", "A", 1L);
+        request = new SchoolClassRequest("Grade 10", null, "A", 1L);
     }
 
     @Test
     void create_whenGradeAndSectionAlreadyExistForSchool_throwsDuplicateResourceException() {
-        when(schoolClassRepository.findBySchool_IdAndGradeAndSection(1L, "Grade 10", "A"))
-                .thenReturn(Optional.of(existingSchoolClass(2L, "Grade 10", "A")));
+        when(schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(1L, "Grade 10", null, "A"))
+                .thenReturn(Optional.of(existingSchoolClass(2L, "Grade 10", null, "A")));
 
         assertThatThrownBy(() -> schoolClassService.create(request))
                 .isInstanceOf(DuplicateResourceException.class)
@@ -58,7 +58,7 @@ class SchoolClassServiceTest {
 
     @Test
     void create_whenSchoolNotFound_throwsEntityNotFoundException() {
-        when(schoolClassRepository.findBySchool_IdAndGradeAndSection(1L, "Grade 10", "A"))
+        when(schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(1L, "Grade 10", null, "A"))
                 .thenReturn(Optional.empty());
         when(schoolRepository.findById(1L)).thenReturn(Optional.empty());
 
@@ -72,11 +72,11 @@ class SchoolClassServiceTest {
     @Test
     void create_whenNoDuplicatesAndSchoolExists_savesSchoolClass() {
         School school = existingSchool(1L);
-        when(schoolClassRepository.findBySchool_IdAndGradeAndSection(1L, "Grade 10", "A"))
+        when(schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(1L, "Grade 10", null, "A"))
                 .thenReturn(Optional.empty());
         when(schoolRepository.findById(1L)).thenReturn(Optional.of(school));
         when(schoolClassRepository.save(any(SchoolClass.class)))
-                .thenReturn(existingSchoolClass(1L, "Grade 10", "A"));
+                .thenReturn(existingSchoolClass(1L, "Grade 10", null, "A"));
 
         SchoolClassResponse response = schoolClassService.create(request);
 
@@ -86,9 +86,24 @@ class SchoolClassServiceTest {
     }
 
     @Test
+    void create_withStream_savesSchoolClass() {
+        SchoolClassRequest requestWithStream = new SchoolClassRequest("Eleventh", "ARTS", "A", 1L);
+        School school = existingSchool(1L);
+        when(schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(1L, "Eleventh", "ARTS", "A"))
+                .thenReturn(Optional.empty());
+        when(schoolRepository.findById(1L)).thenReturn(Optional.of(school));
+        when(schoolClassRepository.save(any(SchoolClass.class)))
+                .thenReturn(existingSchoolClass(1L, "Eleventh", "ARTS", "A"));
+
+        SchoolClassResponse response = schoolClassService.create(requestWithStream);
+
+        assertThat(response.stream()).isEqualTo("ARTS");
+    }
+
+    @Test
     void update_whenGradeAndSectionBelongToAnotherSchoolClass_throwsDuplicateResourceException() {
-        when(schoolClassRepository.findBySchool_IdAndGradeAndSection(1L, "Grade 10", "A"))
-                .thenReturn(Optional.of(existingSchoolClass(2L, "Grade 10", "A")));
+        when(schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(1L, "Grade 10", null, "A"))
+                .thenReturn(Optional.of(existingSchoolClass(2L, "Grade 10", null, "A")));
 
         assertThatThrownBy(() -> schoolClassService.update(1L, request))
                 .isInstanceOf(DuplicateResourceException.class);
@@ -99,7 +114,7 @@ class SchoolClassServiceTest {
 
     @Test
     void update_whenSchoolClassNotFound_throwsEntityNotFoundException() {
-        when(schoolClassRepository.findBySchool_IdAndGradeAndSection(1L, "Grade 10", "A"))
+        when(schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(1L, "Grade 10", null, "A"))
                 .thenReturn(Optional.empty());
         when(schoolClassRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -112,9 +127,9 @@ class SchoolClassServiceTest {
 
     @Test
     void update_whenGradeAndSectionBelongToSameSchoolClass_updatesSuccessfully() {
-        SchoolClass self = existingSchoolClass(1L, "Grade 10", "A");
+        SchoolClass self = existingSchoolClass(1L, "Grade 10", null, "A");
         School school = existingSchool(1L);
-        when(schoolClassRepository.findBySchool_IdAndGradeAndSection(1L, "Grade 10", "A"))
+        when(schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(1L, "Grade 10", null, "A"))
                 .thenReturn(Optional.of(self));
         when(schoolClassRepository.findById(1L)).thenReturn(Optional.of(self));
         when(schoolRepository.findById(1L)).thenReturn(Optional.of(school));
@@ -139,7 +154,7 @@ class SchoolClassServiceTest {
 
     @Test
     void delete_whenSchoolClassExists_deletesSchoolClass() {
-        SchoolClass existing = existingSchoolClass(1L, "Grade 10", "A");
+        SchoolClass existing = existingSchoolClass(1L, "Grade 10", null, "A");
         when(schoolClassRepository.findById(1L)).thenReturn(Optional.of(existing));
 
         schoolClassService.delete(1L);
@@ -147,10 +162,11 @@ class SchoolClassServiceTest {
         verify(schoolClassRepository).delete(existing);
     }
 
-    private SchoolClass existingSchoolClass(Long id, String grade, String section) {
+    private SchoolClass existingSchoolClass(Long id, String grade, String stream, String section) {
         SchoolClass schoolClass = new SchoolClass();
         schoolClass.setId(id);
         schoolClass.setGrade(grade);
+        schoolClass.setStream(stream);
         schoolClass.setSection(section);
         schoolClass.setSchool(existingSchool(1L));
         return schoolClass;

@@ -54,11 +54,13 @@ public class SchoolClassService {
     }
 
     private void ensureUnique(SchoolClassRequest request, Long excludingId) {
-        schoolClassRepository.findBySchool_IdAndGradeAndSection(request.schoolId(), request.grade(), request.section())
+        schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(
+                        request.schoolId(), request.grade(), request.stream(), request.section())
                 .filter(existing -> isDifferentRecord(existing, excludingId))
                 .ifPresent(existing -> {
                     throw new DuplicateResourceException(
-                            "A school class with grade '" + request.grade() + "' and section '" + request.section()
+                            "A school class with grade '" + request.grade() + "', stream '" + request.stream()
+                                    + "' and section '" + request.section()
                                     + "' already exists for school id " + request.schoolId());
                 });
     }
@@ -79,6 +81,7 @@ public class SchoolClassService {
 
     private void applyRequest(SchoolClass schoolClass, SchoolClassRequest request, School school) {
         schoolClass.setGrade(request.grade());
+        schoolClass.setStream(request.stream());
         schoolClass.setSection(request.section());
         schoolClass.setSchool(school);
     }
@@ -87,6 +90,7 @@ public class SchoolClassService {
         return new SchoolClassResponse(
                 schoolClass.getId(),
                 schoolClass.getGrade(),
+                schoolClass.getStream(),
                 schoolClass.getSection(),
                 schoolClass.getSchool().getId(),
                 schoolClass.getCreatedAt(),

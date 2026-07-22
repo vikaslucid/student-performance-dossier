@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,37 +27,58 @@ class SchoolClassRepositoryTest {
     private SchoolClassRepository schoolClassRepository;
 
     @Test
-    void findBySchoolIdAndGradeAndSection_whenExists_returnsSchoolClass() {
+    void findBySchoolIdAndGradeAndStreamAndSection_whenExists_returnsSchoolClass() {
         School school = persistedSchool();
-        SchoolClass schoolClass = persistedSchoolClass(school, "Grade 10", "A");
+        SchoolClass schoolClass = persistedSchoolClass(school, "Grade 10", null, "A");
 
-        Optional<SchoolClass> found = schoolClassRepository.findBySchool_IdAndGradeAndSection(
-                school.getId(), "Grade 10", "A");
+        Optional<SchoolClass> found = schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(
+                school.getId(), "Grade 10", null, "A");
 
         assertThat(found).isPresent();
         assertThat(found.get().getId()).isEqualTo(schoolClass.getId());
     }
 
     @Test
-    void findBySchoolIdAndGradeAndSection_whenMissing_returnsEmpty() {
+    void findBySchoolIdAndGradeAndStreamAndSection_whenMissing_returnsEmpty() {
         School school = persistedSchool();
 
-        Optional<SchoolClass> found = schoolClassRepository.findBySchool_IdAndGradeAndSection(
-                school.getId(), "Grade 99", "Z");
+        Optional<SchoolClass> found = schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(
+                school.getId(), "Grade 99", null, "Z");
 
         assertThat(found).isEmpty();
     }
 
     @Test
-    void findBySchoolIdAndGradeAndSection_whenSameGradeSectionDifferentSchool_returnsEmpty() {
+    void findBySchoolIdAndGradeAndStreamAndSection_whenSameGradeSectionDifferentSchool_returnsEmpty() {
         School school = persistedSchool("Central High");
-        persistedSchoolClass(school, "Grade 10", "A");
+        persistedSchoolClass(school, "Grade 10", null, "A");
         School otherSchool = persistedSchool("Other School");
 
-        Optional<SchoolClass> found = schoolClassRepository.findBySchool_IdAndGradeAndSection(
-                otherSchool.getId(), "Grade 10", "A");
+        Optional<SchoolClass> found = schoolClassRepository.findBySchool_IdAndGradeAndStreamAndSection(
+                otherSchool.getId(), "Grade 10", null, "A");
 
         assertThat(found).isEmpty();
+    }
+
+    @Test
+    void findByGradeIgnoreCaseAndStreamIgnoreCase_matchesRegardlessOfCase() {
+        School school = persistedSchool();
+        SchoolClass schoolClass = persistedSchoolClass(school, "Eleventh", "ARTS", "A");
+
+        List<SchoolClass> found = schoolClassRepository.findByGradeIgnoreCaseAndStreamIgnoreCase("ELEVENTH", "arts");
+
+        assertThat(found).extracting(SchoolClass::getId).containsExactly(schoolClass.getId());
+    }
+
+    @Test
+    void findByGradeIgnoreCaseAndStreamIsNull_matchesOnlyClassesWithoutStream() {
+        School school = persistedSchool();
+        SchoolClass withoutStream = persistedSchoolClass(school, "EIGHTH", null, "A");
+        persistedSchoolClass(school, "Eleventh", "ARTS", "A");
+
+        List<SchoolClass> found = schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("eighth");
+
+        assertThat(found).extracting(SchoolClass::getId).containsExactly(withoutStream.getId());
     }
 
     private School persistedSchool() {
@@ -70,9 +92,10 @@ class SchoolClassRepositoryTest {
         return entityManager.persistFlushFind(school);
     }
 
-    private SchoolClass persistedSchoolClass(School school, String grade, String section) {
+    private SchoolClass persistedSchoolClass(School school, String grade, String stream, String section) {
         SchoolClass schoolClass = new SchoolClass();
         schoolClass.setGrade(grade);
+        schoolClass.setStream(stream);
         schoolClass.setSection(section);
         schoolClass.setSchool(school);
         return entityManager.persistFlushFind(schoolClass);

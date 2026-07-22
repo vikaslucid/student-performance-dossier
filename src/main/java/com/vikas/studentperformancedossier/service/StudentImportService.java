@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 // Columns are matched by header text (case/punctuation/whitespace-insensitive), not fixed
 // position - extra columns before/after/between the ones below, or a different column order,
@@ -31,11 +33,14 @@ import java.util.Map;
 // Session | Class | Admission Date (yyyy-MM-dd) | Admission No. | Name | Father's Name |
 // Father's Mobile | Mother's Name | Mother's Mobile | Address | Primary Parent | Primary Parent Mobile
 //
-// Class is matched against an existing School Class by grade alone (no section column in the
-// source data) - if a grade has more than one section, the row is reported as ambiguous rather
-// than guessing. Session and the parent/guardian/address columns are optional (and can be missing
-// from the file entirely); Class, Admission Date, Admission No. and Name are required - if one of
-// those headers isn't found at all, the whole import is rejected up front.
+// Class is split into class name + stream from a "Name (STREAM)" pattern, e.g. "Eleventh (ARTS)"
+// -> class="Eleventh", stream="ARTS"; a value with no parentheses, e.g. "EIGHTH", is treated as
+// class="EIGHTH" with no stream. Matching against an existing School Class is case-insensitive on
+// both class and stream (source data casing is inconsistent, e.g. "Eleventh" vs "ELEVENTH") and
+// ignores section - if a class+stream combination has more than one section, the row is reported
+// as ambiguous rather than guessing. Session and the parent/guardian/address columns are optional
+// (and can be missing from the file entirely); Class, Admission Date, Admission No. and Name are
+// required - if one of those headers isn't found at all, the whole import is rejected up front.
 @Service
 public class StudentImportService {
 
@@ -57,6 +62,9 @@ public class StudentImportService {
             COL_ADMISSION_DATE, "Admission Date",
             COL_ADMISSION_NUMBER, "Admission No.",
             COL_NAME, "Name");
+
+    // "Eleventh (ARTS)" -> class="Eleventh", stream="ARTS"; "EIGHTH" (no parens) -> class="EIGHTH", stream=null
+    private static final Pattern CLASS_STREAM_PATTERN = Pattern.compile("^(.*?)\\s*\\(([^)]+)\\)\\s*$");
 
     private final StudentService studentService;
     private final SchoolClassRepository schoolClassRepository;
@@ -155,7 +163,8 @@ public class StudentImportService {
         String primaryParentMobile = optionalText(row, columns, COL_PRIMARY_PARENT_MOBILE, dataFormatter);
 
         String[] nameParts = splitName(fullName);
-        Long schoolClassId = findSchoolClassId(grade);
+        String[] classStream = splitClassStream(grade);
+        Long schoolClassId = findSchoolClassId(classStream[0], classStream[1]);
 
         return new StudentRequest(
                 nameParts[0],
@@ -183,14 +192,27 @@ public class StudentImportService {
         return new String[]{fullName.substring(0, spaceIndex), fullName.substring(spaceIndex + 1).trim()};
     }
 
-    private Long findSchoolClassId(String grade) {
-        List<SchoolClass> matches = schoolClassRepository.findByGrade(grade);
+    // "Eleventh (ARTS)" -> {"Eleventh", "ARTS"}; "EIGHTH" (no parens) -> {"EIGHTH", null}
+    private String[] splitClassStream(String classColumnValue) {
+        Matcher matcher = CLASS_STREAM_PATTERN.matcher(classColumnValue);
+        if (matcher.matches()) {
+            return new String[]{matcher.group(1).trim(), matcher.group(2).trim()};
+        }
+        return new String[]{classColumnValue.trim(), null};
+    }
+
+    private Long findSchoolClassId(String grade, String stream) {
+        List<SchoolClass> matches = stream == null
+                ? schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull(grade)
+                : schoolClassRepository.findByGradeIgnoreCaseAndStreamIgnoreCase(grade, stream);
+
+        String description = stream == null ? "class '" + grade + "'" : "class '" + grade + "', stream '" + stream + "'";
         if (matches.isEmpty()) {
-            throw new InvalidRequestException("No school class found for grade '" + grade + "'");
+            throw new InvalidRequestException("No school class found for " + description);
         }
         if (matches.size() > 1) {
             throw new InvalidRequestException(
-                    "Multiple school classes match grade '" + grade + "' - cannot determine which one");
+                    "Multiple school classes match " + description + " - cannot determine which one");
         }
         return matches.get(0).getId();
     }

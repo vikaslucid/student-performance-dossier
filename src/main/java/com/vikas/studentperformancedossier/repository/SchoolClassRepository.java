@@ -8,7 +8,9 @@ import java.util.Optional;
 
 public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> {
 
-    Optional<SchoolClass> findBySchool_IdAndGradeAndSection(Long schoolId, String grade, String section);
+    Optional<SchoolClass> findBySchool_IdAndGradeAndStreamAndSection(Long schoolId, String grade, String stream, String section);
 
-    List<SchoolClass> findByGrade(String grade);
+    List<SchoolClass> findByGradeIgnoreCaseAndStreamIgnoreCase(String grade, String stream);
+
+    List<SchoolClass> findByGradeIgnoreCaseAndStreamIsNull(String grade);
 }

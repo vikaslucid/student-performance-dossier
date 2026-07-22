@@ -67,7 +67,7 @@ class StudentImportServiceTest {
 
     @Test
     void importFromExcel_whenValidRow_importsSuccessfullyAndSplitsName() throws IOException {
-        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class)))
                 .thenReturn(sampleResponse());
 
@@ -89,7 +89,7 @@ class StudentImportServiceTest {
 
     @Test
     void importFromExcel_whenLegacyXlsFile_importsSuccessfully() throws IOException {
-        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
 
         MultipartFile file = legacyXlsWorkbookWithRows(
@@ -105,7 +105,7 @@ class StudentImportServiceTest {
 
     @Test
     void importFromExcel_whenSingleWordName_lastNameIsEmpty() throws IOException {
-        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
 
         MultipartFile file = workbookWithRows(
@@ -137,7 +137,7 @@ class StudentImportServiceTest {
 
     @Test
     void importFromExcel_whenClassNotFound_recordsRowError() throws IOException {
-        when(schoolClassRepository.findByGrade("99")).thenReturn(List.of());
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("99")).thenReturn(List.of());
 
         MultipartFile file = workbookWithRows(
                 new String[]{"", "99", "2020-01-01", "S-100", "Ada Lovelace", "", "", "", "", "", "", ""}
@@ -153,7 +153,7 @@ class StudentImportServiceTest {
 
     @Test
     void importFromExcel_whenClassAmbiguous_recordsRowError() throws IOException {
-        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L), schoolClass(2L)));
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("10")).thenReturn(List.of(schoolClass(1L), schoolClass(2L)));
 
         MultipartFile file = workbookWithRows(
                 new String[]{"", "10", "2020-01-01", "S-100", "Ada Lovelace", "", "", "", "", "", "", ""}
@@ -181,7 +181,7 @@ class StudentImportServiceTest {
 
     @Test
     void importFromExcel_whenDuplicateStudentNumber_recordsRowErrorButContinuesOtherRows() throws IOException {
-        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class)))
                 .thenThrow(new DuplicateResourceException("A student with student number 'S-100' already exists"))
                 .thenReturn(sampleResponse());
@@ -203,7 +203,8 @@ class StudentImportServiceTest {
     void importFromExcel_whenExtraAndSkippedColumns_matchesByHeaderNameNotPosition() throws IOException {
         // Reproduces a real-world file layout: two unrelated leading columns, then Session/Class,
         // then a blank/hidden column, then the rest - same shape as a real school register export.
-        when(schoolClassRepository.findByGrade("Eleventh (COMMERCE)")).thenReturn(List.of(schoolClass(1L)));
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIgnoreCase("Eleventh", "COMMERCE"))
+                .thenReturn(List.of(schoolClassWithStream(1L, "Eleventh", "COMMERCE")));
         when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
 
         String[] headers = {"S.No", "Roll No", "Session", "Class", "", "Admission Date", "Admission No.",
@@ -225,6 +226,25 @@ class StudentImportServiceTest {
     }
 
     @Test
+    void importFromExcel_whenClassCasingDiffersFromStored_matchesCaseInsensitively() throws IOException {
+        // Real source data is inconsistent: "ELEVENTH (MEDICAL)" vs "Eleventh (Medical)" for the same
+        // stored School Class - matching must not be case-sensitive on either class or stream.
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIgnoreCase("ELEVENTH", "MEDICAL"))
+                .thenReturn(List.of(schoolClassWithStream(1L, "Eleventh", "Medical")));
+        when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
+
+        MultipartFile file = workbookWithRows(
+                new String[]{"", "ELEVENTH (MEDICAL)", "2020-01-01", "S-100", "Ada Lovelace",
+                        "", "", "", "", "", "", ""}
+        );
+
+        StudentImportResult result = studentImportService.importFromExcel(file);
+
+        assertThat(result.importedCount()).isEqualTo(1);
+        assertThat(result.errors()).isEmpty();
+    }
+
+    @Test
     void importFromExcel_whenRequiredHeaderMissing_throwsInvalidRequestException() throws IOException {
         String[] headers = {"Session", "Admission Date", "Admission No.", "Name"};
         String[] row = {"2024-25", "2020-01-01", "S-100", "Ada Lovelace"};
@@ -238,7 +258,7 @@ class StudentImportServiceTest {
 
     @Test
     void importFromExcel_whenBlankRow_skipsWithoutError() throws IOException {
-        when(schoolClassRepository.findByGrade("10")).thenReturn(List.of(schoolClass(1L)));
+        when(schoolClassRepository.findByGradeIgnoreCaseAndStreamIsNull("10")).thenReturn(List.of(schoolClass(1L)));
         when(studentService.create(any(StudentRequest.class))).thenReturn(sampleResponse());
 
         MultipartFile file = workbookWithRows(
@@ -256,6 +276,15 @@ class StudentImportServiceTest {
         SchoolClass schoolClass = new SchoolClass();
         schoolClass.setId(id);
         schoolClass.setGrade("10");
+        schoolClass.setSection("A");
+        return schoolClass;
+    }
+
+    private SchoolClass schoolClassWithStream(Long id, String grade, String stream) {
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setId(id);
+        schoolClass.setGrade(grade);
+        schoolClass.setStream(stream);
         schoolClass.setSection("A");
         return schoolClass;
     }

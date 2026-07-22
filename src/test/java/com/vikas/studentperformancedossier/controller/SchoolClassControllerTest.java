@@ -103,7 +103,7 @@ class SchoolClassControllerTest {
 
     @Test
     void createSchoolClass_whenGradeBlank_returns400() throws Exception {
-        SchoolClassRequest invalidRequest = new SchoolClassRequest("", "A", 1L);
+        SchoolClassRequest invalidRequest = new SchoolClassRequest("", null, "A", 1L);
 
         mockMvc.perform(post("/api/school-classes")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -115,7 +115,7 @@ class SchoolClassControllerTest {
 
     @Test
     void createSchoolClass_whenSectionBlank_returns400() throws Exception {
-        SchoolClassRequest invalidRequest = new SchoolClassRequest("Grade 10", "", 1L);
+        SchoolClassRequest invalidRequest = new SchoolClassRequest("Grade 10", null, "", 1L);
 
         mockMvc.perform(post("/api/school-classes")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -126,7 +126,7 @@ class SchoolClassControllerTest {
 
     @Test
     void createSchoolClass_whenSchoolIdMissing_returns400() throws Exception {
-        SchoolClassRequest invalidRequest = new SchoolClassRequest("Grade 10", "A", null);
+        SchoolClassRequest invalidRequest = new SchoolClassRequest("Grade 10", null, "A", null);
 
         mockMvc.perform(post("/api/school-classes")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -203,7 +203,7 @@ class SchoolClassControllerTest {
 
     @Test
     void updateSchoolClass_whenInvalid_returns400WithFieldErrors() throws Exception {
-        SchoolClassRequest invalidRequest = new SchoolClassRequest("", "", null);
+        SchoolClassRequest invalidRequest = new SchoolClassRequest("", null, "", null);
 
         mockMvc.perform(put("/api/school-classes/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -231,13 +231,14 @@ class SchoolClassControllerTest {
     }
 
     private SchoolClassRequest sampleRequest() {
-        return new SchoolClassRequest("Grade 10", "A", 1L);
+        return new SchoolClassRequest("Grade 10", null, "A", 1L);
     }
 
     private SchoolClassResponse sampleResponse(Long id) {
         return new SchoolClassResponse(
                 id,
                 "Grade 10",
+                null,
                 "A",
                 1L,
                 LocalDateTime.of(2026, 1, 1, 0, 0),
